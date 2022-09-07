@@ -1,5 +1,5 @@
-Sratchpad
-=========
+Scratchpad
+==========
 
 * [Ghost Code in Action: Automated Verification of a Symbolic Interpreter](https://hal.inria.fr/hal-02276257)
 * [Weakest Precondition Calculus, Revisited using Why3](https://hal.inria.fr/hal-00766171)
