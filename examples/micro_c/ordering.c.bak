@@ -1,0 +1,82 @@
+//@ predicate is_min(int m, int a[], int hi) =
+//@     (hi <= length(a))
+//@     && (exists i. 0 <= i < hi && a[i] == m)
+//@     && (forall i. 0 <= i < hi -> m <= a[i]);
+
+int min(int arr[], int len) {
+    //@ requires len == length(arr) >= 1;
+    //@ ensures is_min(result, arr, length(arr));
+    int min = arr[0];
+    for (int i = 1; i < len; i += 1) {
+        //@ variant len - i;
+        //@ invariant is_min(min, arr, i);
+        if (arr[i] < min) {
+            min = arr[i];
+        }
+    }
+    return min;
+}
+
+//@ predicate even(int x) = x % 2 == 0;
+
+//@ predicate only_evens(int a[], int hi) =
+//@     (hi <= length(a))
+//@     && (forall i. 0 <= i < hi -> even(a[i]));
+
+/// O(n) filter
+/// Still haven't proven that the result contains *all* evens
+int retain_evens(int arr[], int len) {
+    //@ requires len == length(arr);
+    //@ ensures only_evens(arr, result);
+    int progress = 0;
+    for (int i = 0; i < len; i += 1) {
+        //@ variant len - i;
+        //@ invariant 0 <= progress <= i <= length(arr);
+        //@ invariant only_evens(arr, progress);
+        if (arr[i] % 2 == 0) {
+            arr[progress] = arr[i];
+            progress += 1;
+        }
+    }
+    return progress;
+}
+
+//@ predicate sorted(int arr[], int lo, int hi) =
+//@     0 <= lo <= hi <= length(arr)
+//@     && forall i. lo <= i < hi ->
+//@        forall j. lo <= j < i -> arr[i] >= arr[j];
+
+void merge(int src[], int dst[], int idx, int size) {
+    //@ requires 0 <= idx < idx + size * 2 <= length(src) == length(dst);
+    //@ requires sorted(src, idx, idx + size) && sorted(src, idx + size, idx + size * 2);
+    //@ ensures sorted(dst, idx, idx + size * 2);
+    int start = idx;
+    int middle = idx + size;
+    int limit = idx + size * 2;
+    //@ assert start < middle < limit <= length(dst);
+    
+    int idx_dst = start;
+    int idx_a = start;
+    int idx_b = middle;
+    
+    while (idx_dst < limit) {
+        //@ variant limit - idx_dst;
+        //@ invariant start <= idx_dst;
+        //@ invariant start <= idx_a <= middle;
+        //@ invariant idx_a - start + idx_b - middle == idx_dst - start;
+        if (idx_b >= limit
+            || (idx_a < middle && src[idx_a] < src[idx_b])) {
+            dst[idx_dst] = src[idx_a];
+            idx_a += 1;
+        } else {
+            dst[idx_dst] = src[idx_b];
+            idx_b += 1;
+        }
+        idx_dst += 1;
+    }
+}
+
+void merge_sort(int arr[], int aux[]) {
+    ///@ requires length(arr) == length(aux);
+    ///@ ensures sorted(arr, 0, length(arr));
+}

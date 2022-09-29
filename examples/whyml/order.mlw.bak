@@ -1,0 +1,12 @@
+module Sorting
+  use array.Array
+  use int.Int
+  use list.List
+
+  predicate is_sorted (a: array int) = 
+    forall i. 0 <= i < length a -> forall j. 0 <= j < i -> a[j] <= a[i]
+  
+  let insertion_sort (a: array int): array int =
+    ensures {is_sorted result}
+    a
+end

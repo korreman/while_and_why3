@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"http://why3.lri.fr/why3session.dtd">
+<why3session shape_version="6">
+<prover id="1" name="Alt-Ergo" version="2.4.2" timelimit="5" steplimit="0" memlimit="1000"/>
+<file format="micro-C">
+<path name=".."/><path name="ordering.c"/>
+<theory name="Ordering">
+ <goal name="min&#39;vc" expl="VC for min" proved="true">
+ <proof prover="1"><result status="valid" time="0.04" steps="198"/></proof>
+ </goal>
+ <goal name="retain_evens&#39;vc" expl="VC for retain_evens" proved="true">
+ <proof prover="1"><result status="valid" time="0.22" steps="1677"/></proof>
+ </goal>
+ <goal name="merge&#39;vc" expl="VC for merge">
+ <proof prover="1"><result status="timeout" time="5.00"/></proof>
+ </goal>
+ <goal name="merge_sort&#39;vc" expl="VC for merge_sort">
+ <proof prover="1"><undone/></proof>
+ </goal>
+</theory>
+</file>
+</why3session>
