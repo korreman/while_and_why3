@@ -1,0 +1,61 @@
+(lang dune 3.4)
+(name why3while)
+(sections (lib .) (libexec .))
+(files
+ (lib
+  (META
+   dune-package
+   opam
+   why3while.a
+   why3while.cma
+   why3while.cmi
+   why3while.cmt
+   why3while.cmx
+   why3while.cmxa
+   why3while.ml
+   why3while__Wi_ast.cmi
+   why3while__Wi_ast.cmti
+   why3while__Wi_main.cmi
+   why3while__Wi_main.cmt
+   why3while__Wi_main.cmti
+   why3while__Wi_main.cmx
+   why3while__Wi_printer.cmi
+   why3while__Wi_printer.cmt
+   why3while__Wi_printer.cmti
+   why3while__Wi_printer.cmx
+   wi_ast.mli
+   wi_main.ml
+   wi_main.mli
+   wi_printer.ml
+   wi_printer.mli))
+ (libexec (why3while.cmxs)))
+(library
+ (name why3while)
+ (kind normal)
+ (archives (byte why3while.cma) (native why3while.cmxa))
+ (plugins (byte why3while.cma) (native why3while.cmxs))
+ (native_archives why3while.a)
+ (main_module_name Why3while)
+ (modes byte native)
+ (modules
+  (wrapped
+   (main_module_name Why3while)
+   (modules
+    ((name Wi_ast) (obj_name why3while__Wi_ast) (visibility public) (intf))
+    ((name Wi_main)
+     (obj_name why3while__Wi_main)
+     (visibility public)
+     (impl)
+     (intf))
+    ((name Wi_printer)
+     (obj_name why3while__Wi_printer)
+     (visibility public)
+     (impl)
+     (intf)))
+   (alias_module
+    (name Why3while)
+    (obj_name why3while)
+    (visibility public)
+    (kind alias)
+    (impl))
+   (wrapped true))))

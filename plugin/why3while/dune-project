@@ -1,0 +1,26 @@
+(lang dune 3.4)
+
+(name why3while)
+
+(generate_opam_files true)
+
+(source
+ (github username/reponame))
+
+(authors "Troels Korreman Nielsen")
+
+(maintainers "Maintainer Name")
+
+(license LICENSE)
+
+(documentation https://url/to/documentation)
+
+(package
+ (name why3while)
+ (synopsis "A why3 plugin for a While language")
+ (description "A longer description")
+ (depends ocaml dune why3)
+ (tags
+  (topics "to describe" your project)))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

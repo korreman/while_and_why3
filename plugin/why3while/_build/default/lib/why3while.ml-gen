@@ -1,0 +1,10 @@
+(** @canonical Why3while.Wi_ast *)
+module Wi_ast = Why3while__Wi_ast
+
+
+(** @canonical Why3while.Wi_main *)
+module Wi_main = Why3while__Wi_main
+
+
+(** @canonical Why3while.Wi_printer *)
+module Wi_printer = Why3while__Wi_printer

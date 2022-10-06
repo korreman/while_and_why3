@@ -1,0 +1,5 @@
+# dune init proj --kind=lib why3while
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Workspace root: /home/korreman/puk/repo/plugin
+# Auto-detected concurrency: 12

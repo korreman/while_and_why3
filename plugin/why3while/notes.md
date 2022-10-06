@@ -1,4 +1,4 @@
-# MicroC
+# Plugins
 
 The entry-point seems to be found in the bottom of the `mc_main.ml` module:
 
@@ -55,3 +55,12 @@ A language consists of:
 Parsers are:
     type 'a format_parser = env -> pathname -> filename -> in_channel -> 'a
 Basically, above takes an `in_channel` (file handle) and produces a value.
+
+# Breakdown
+
+The MicroC plugin defines:
+
+- A syntax tree
+- A lexer
+- A parser
+- A (???) printer
