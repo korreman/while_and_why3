@@ -11,15 +11,17 @@
 
 (maintainers "Maintainer Name")
 
-(license LICENSE)
+(license GPL2)
 
 (documentation https://url/to/documentation)
 
 (package
  (name why3while)
  (synopsis "A why3 plugin for a While language")
- (description "A longer description")
- (depends ocaml dune why3)
+ (description "Insert longer description")
+ (depends
+  (why3 (= 1.5.1))
+  (mparser (= 1.3)))
  (tags
   (topics "to describe" your project)))
 

@@ -1,5 +1,6 @@
 (library
  (public_name why3while)
  (name why3while)
+ (libraries why3 mparser)
  (modules_without_implementation wi_ast)
 )

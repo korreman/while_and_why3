@@ -1,6 +1,0 @@
-description = ""
-requires = ""
-archive(byte) = "why3while.cma"
-archive(native) = "why3while.cmxa"
-plugin(byte) = "why3while.cma"
-plugin(native) = "why3while.cmxs"
