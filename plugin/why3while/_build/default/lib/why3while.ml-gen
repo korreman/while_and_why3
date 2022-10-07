@@ -2,8 +2,16 @@
 module Wi_ast = Why3while__Wi_ast
 
 
+(** @canonical Why3while.Wi_lexer *)
+module Wi_lexer = Why3while__Wi_lexer
+
+
 (** @canonical Why3while.Wi_main *)
 module Wi_main = Why3while__Wi_main
+
+
+(** @canonical Why3while.Wi_parser *)
+module Wi_parser = Why3while__Wi_parser
 
 
 (** @canonical Why3while.Wi_printer *)
