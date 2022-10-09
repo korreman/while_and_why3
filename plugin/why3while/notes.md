@@ -63,4 +63,4 @@ The MicroC plugin defines:
 - A syntax tree
 - A lexer
 - A parser
-- A (???) printer
+- A task printer

@@ -9,11 +9,11 @@
 
 (authors "Troels Korreman Nielsen")
 
-(maintainers "Maintainer Name")
+;(maintainers "Maintainer Name")
 
 (license GPL2)
 
-(documentation https://url/to/documentation)
+;(documentation https://url/to/documentation)
 
 (package
  (name why3while)
