@@ -113,3 +113,8 @@ let pStmt = pStmtFn ()
 
 let pAst : ast parser =
     pStmt << pSymbol ";" |> pTag |> many
+
+let parse s =
+    match MParser.parse_string (pAst << eof) s () with
+        | Success e -> Result.ok e
+        | Failed (msg, _e) -> Result.error msg

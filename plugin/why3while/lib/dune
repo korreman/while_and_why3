@@ -2,7 +2,9 @@
  (public_name why3while)
  (name why3while)
  (libraries why3 mparser)
- (modules_without_implementation wi_ast))
+ (inline_tests)
+ (modules_without_implementation wi_ast)
+ (preprocess (pps ppx_inline_test)))
 
 (env
  (dev
