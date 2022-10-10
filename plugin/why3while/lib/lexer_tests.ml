@@ -13,7 +13,7 @@ let mk_pos (a, b) (c, d) = {
 }
 
 let%test "skip" =
-    match parse "skip;" with
+    match parse_string "skip;" with
         | Result.Ok [{ pos = p; desc = d }] ->
             d == SSkip
         | _ -> false
