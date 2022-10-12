@@ -29,6 +29,13 @@ let () = Args_wrapper.set_argument_parsing_functions "while"
   ~parse_list_qualid: Wi_parser.parse_list_qualid
   ~parse_list_ident: Wi_parser.parse_list_ident
 
+(* Kens gæt: CLI-interaction and IDE.
+   Some transformations take arguments,
+   and these will be talking about the While syntax.
+
+   User-provided arguments to commands and transformations.
+*)
+
 (*
     ident: identifier, consists of:
         - a location
