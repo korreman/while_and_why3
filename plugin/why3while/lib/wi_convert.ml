@@ -3,11 +3,6 @@ open Term
 open Wstdlib
 open Wi_ast
 
-let convert _ast =
-    let theories = Mstr.empty in
-
-    theories
-
 (*
 What is a theory?
 How to create a theory?
@@ -100,11 +95,7 @@ let rec wp_stmt (s: stmt) (q: term) : term =
         | SSkip -> q
         | SAssert { desc = f; _ } -> t_and (formula_to_term f) q
         | SAssign (v, e) ->
-            let vs = create_vsymbol {
-                pre_name = v.desc;
-                pre_attrs = Ident.Sattr.empty;
-                pre_loc = Some(convert_position v.pos)
-            } Ty.ty_bool in
+            let vs = create_vsymbol (Ident.id_fresh ~loc:(convert_position v.pos) v.desc) Ty.ty_bool in
             let e' = expr_to_term e.desc in
             t_forall_close [vs] [(*TODO: find out what triggers are*)] (
                 t_implies
@@ -114,10 +105,10 @@ let rec wp_stmt (s: stmt) (q: term) : term =
             (* forall v. v = e -> Q[x <- v] *)
         | SIfElse (e, s1, s2) -> t_if (expr_to_term e.desc) (wp_stmt s1.desc q) (wp_stmt s2.desc q)
             (* if e then WP(s1, q) else WP(s2, q) *)
-        | SWhile (e, i, s) ->
-            t_and
+        | SWhile (e, i, s) -> t_true
+            (*** t_and
                 (formula_to_term i.desc)
-                ()
+                () ***)
             (* I /\ forall varr. (I -> if e then WP(s, I) else Q)[warr <- varr]
                where warr are the variables modified the loop body
             *)
@@ -130,6 +121,32 @@ let rec wp_stmt (s: stmt) (q: term) : term =
 *)
 (** individual statement transformation for weakest precondition calculus *)
 
-let wp (ss : stmt list) : term =
-    List.fold_right wp_stmt ss t_true
+let wp (stmts : stmt list) : term =
+    List.fold_right wp_stmt stmts t_true
 (** weakest precondition calculus *)
+
+let vc_gen ((vdecls, stmts): ast) : Theory.theory =
+    let lsym = Term.create_lsymbol
+        (Ident.id_fresh "main")
+        (List.map (fun _ -> Ty.ty_bool) vdecls)
+        None in
+    let f = wp (List.map (fun stmt -> stmt.desc) stmts) in
+    let ldecl = Decl.make_ls_defn
+        lsym
+        (List.map
+            (fun vdecl -> Term.create_vsymbol
+                (Ident.id_fresh ~loc:(convert_position vdecl.pos) vdecl.desc)
+                Ty.ty_bool
+            )
+            vdecls
+        )
+        f in
+    let decl = Decl.create_logic_decl [ldecl] in
+    let theory = Theory.create_theory (Ident.id_fresh "some_theory") in
+    let theory' = Theory.add_decl theory decl in
+    Theory.close_theory theory'
+
+let convert ast =
+    let theory = vc_gen ast in
+    let theories = Mstr.empty in Mstr.add "main" theory theories
+

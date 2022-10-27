@@ -1,12 +1,8 @@
-(library
- (public_name why3while)
- (name why3while)
+(executable
+ (name wi_main)
  (libraries why3 mparser)
- (inline_tests)
  (modules_without_implementation wi_ast)
- (preprocess (pps ppx_inline_test)))
+ (embed_in_plugin_libraries mparser)
+ (modes (byte plugin) (native plugin)))
 
-(env
- (dev
-  (flags
-   (:standard -warn-error -A))))
+(env (dev (flags (:standard -warn-error -A))))
