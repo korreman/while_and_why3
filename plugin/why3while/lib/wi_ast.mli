@@ -1,3 +1,5 @@
+(* TODO: write or derive a printer *)
+
 type coord = {
     line: int;
     col: int;
@@ -28,15 +30,15 @@ type expr =
     | ENot of expr tagged
     | EBinop of binop tagged * expr tagged * expr tagged
 
-type pred = expr
-
-type invariant = pred
+type formula = expr
 
 type stmt =
     | SSkip
-    | SAssert of pred tagged
+    | SAssert of formula tagged
     | SAssign of var tagged * expr tagged
     | SIfElse of expr tagged * stmt tagged * stmt tagged
-    | SWhile of expr tagged * invariant tagged * stmt tagged
+    | SWhile of expr tagged * formula tagged * stmt tagged
 
-type ast = stmt tagged list
+type decls = string tagged list
+
+type ast = decls * (stmt tagged list)

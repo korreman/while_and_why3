@@ -1,4 +1,4 @@
-open Wi_lexer
+open Wi_parser
 open Wi_ast
 
 let mk_pos (a, b) (c, d) = {
@@ -13,7 +13,7 @@ let mk_pos (a, b) (c, d) = {
 }
 
 let%test "skip" =
-    match parse_string "skip;" with
-        | Result.Ok [{ pos = p; desc = d }] ->
+    match parse_string "x y; skip;" with
+        | Result.Ok (decls, [{ pos = p; desc = d }]) ->
             d == SSkip
         | _ -> false
