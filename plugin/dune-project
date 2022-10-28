@@ -19,6 +19,7 @@
  (name why3while)
  (synopsis "A why3 plugin for a While language")
  (description "Insert longer description")
+ (allow_empty)
  (depends
   (why3 (= 1.5.1))
   (mparser (= 1.3)))

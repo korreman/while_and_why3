@@ -1,5 +1,0 @@
-# dune build --release
-# OCAMLPARAM: unset
-# Shared cache: disabled
-# Workspace root: /home/korreman/puk/repo/plugin/why3while/lib
-# Auto-detected concurrency: 8
