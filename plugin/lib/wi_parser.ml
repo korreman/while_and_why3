@@ -58,8 +58,8 @@ let pValue =
 let pVar = pIdent
 
 let pTerm =
-    (pVar >>= fun x -> return (EVar x)) <|>
-    (pToken pValue >>= fun x -> return (EValue x))
+    (pToken pValue >>= fun x -> return (EValue x)) <|>
+    (pVar >>= fun x -> return (EVar x))
 
 let infix (p : 'a parser) (op : binop) (assoc : assoc) : (expr tagged, unit) operator =
     Infix ((pToken p |>> fun p a b ->

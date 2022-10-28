@@ -126,22 +126,9 @@ let wp (stmts : stmt list) : term =
 (** weakest precondition calculus *)
 
 let vc_gen ((vdecls, stmts): ast) : Theory.theory =
-    let lsym = Term.create_lsymbol
-        (Ident.id_fresh "main")
-        (List.map (fun _ -> Ty.ty_bool) vdecls)
-        None in
+    let psym = Decl.create_prsymbol (Ident.id_fresh "main") in
     let f = wp (List.map (fun stmt -> stmt.desc) stmts) in
-    let ldecl = Decl.make_ls_defn
-        lsym
-        (List.map
-            (fun vdecl -> Term.create_vsymbol
-                (Ident.id_fresh ~loc:(convert_position vdecl.pos) vdecl.desc)
-                Ty.ty_bool
-            )
-            vdecls
-        )
-        f in
-    let decl = Decl.create_logic_decl [ldecl] in
+    let decl = Decl.create_prop_decl Decl.Pgoal psym f in
     let theory = Theory.create_theory (Ident.id_fresh "some_theory") in
     let theory' = Theory.add_decl theory decl in
     Theory.close_theory theory'
