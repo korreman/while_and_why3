@@ -15,29 +15,43 @@ type 'a tagged = {
     desc: 'a;
 }
 
-type var = string
-
-type value =
-    | VBool of bool
-
-type binop =
-    | Band
-    | Bor
+type ebinop =
+    | BAdd
+    | BSub
+    | BMul
+    | BDiv
+    | BRem
 
 type expr =
-    | EValue of value tagged
-    | EVar of var tagged
-    | ENot of expr tagged
-    | EBinop of binop tagged * expr tagged * expr tagged
+    | EConst of int
+    | EVar of string
+    | EBinop of ebinop tagged * expr tagged * expr tagged
 
-type formula = expr
+type fbinop =
+    | FAnd
+    | FOr
+    | FImplies
+
+type fcmp =
+    | CEq
+    | CNe
+    | CGt
+    | CGe
+    | CLt
+    | CLe
+
+type cond =
+    | FTerm of bool
+    | FNot of cond tagged
+    | FBinop of fbinop tagged * cond tagged * cond tagged
+    | FCompare of fcmp tagged * expr tagged * expr tagged
 
 type stmt =
     | SSkip
-    | SAssert of formula tagged
-    | SAssign of var tagged * expr tagged
-    | SIfElse of expr tagged * stmt tagged * stmt tagged
-    | SWhile of expr tagged * formula tagged * stmt tagged
+    | SAssert of cond tagged
+    | SAssign of string tagged * expr tagged
+    | SIfElse of cond tagged * stmt tagged * stmt tagged
+    | SWhile of cond tagged * cond tagged * stmt tagged
 
 type decls = string tagged list
 

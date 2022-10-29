@@ -27,55 +27,88 @@ let pToken (p : 'a parser) : (('a tagged) parser) =
         };
         desc = x;
     })
-
 (** Convert a parser to a token parser, handling whitespace and tagging positions. **)
-(*
-    Hmm, still doesn't feel quite right.
-    If we replace the contents of a parsed token with a value,
-    shouldn't the position information for the originally parsed token still be kept around?
-    In other words,
-    it'd be best if position information wasn't a part of the result,
-    but just stored in the parser.
-    Which it is, but we need both the start and stop positions of every token.
-    I'm really warming up to the idea of splitting stuff into lexing and parsing for future cases.
-*)
+
 
 let pSymbol s = pToken (T.symbol s)
 
+let keywords =
+    ["true"; "false"; "not"; "skip"; "assert"; "if"; "then"; "else"; "while"; "invariant"; "do"]
+
 let pIdent =
-    pToken (look_ahead lowercase >> many_chars alphanum)
+    pToken (
+        look_ahead lowercase >>
+        many_chars alphanum >>= fun ident ->
+        if List.exists(fun x -> x == ident) keywords
+            then fail ("reserved keyword: " ^ ident)
+            else return ident
+    )
+
+(*** tokens ***)
+
+let pBool : cond parser =
+    (pSymbol "true" >>$ FTerm true) <|>
+    (pSymbol "false" >>$ FTerm false)
+
+let pInt : expr parser =
+    many1_chars digit |>> fun ds -> EConst (int_of_string ds)
+
+let pVar : expr parser =
+    pIdent |>> fun v -> EVar v.desc
 
 (*** expressions ***)
-(* TODO: Figure out how to not throw out position tags *)
 
-let pBool : bool parser =
-    (pSymbol "true" >>$ true) <|>
-    (pSymbol "false" >>$ false)
+let pBinop constr (p: 'a parser) op =
+    pToken p |>> fun p e1 e2->
+    { desc = constr ({desc = op; pos = p.pos}, e1, e2);
+      pos = {start = e1.pos.start; stop = e2.pos.stop}
+    }
 
-let pValue =
-    pBool >>= fun x -> return (VBool x)
+let cEBinop (op, e1, e2) = EBinop (op, e1, e2)
+let cFBinop (op, c1, c2) = FBinop (op, c1, c2)
 
-let pVar = pIdent
-
-let pTerm =
-    (pToken pValue >>= fun x -> return (EValue x)) <|>
-    (pVar >>= fun x -> return (EVar x))
-
-let infix (p : 'a parser) (op : binop) (assoc : assoc) : (expr tagged, unit) operator =
-    Infix ((pToken p |>> fun p a b ->
-        ({pos = { start = a.pos.start; stop = b.pos.stop };
-          desc = EBinop ({pos = p.pos; desc = op}, a, b)})),
-         assoc)
-
-let operators = [
-    [infix (pSymbol "&") Band Assoc_right];
-    [infix (pSymbol "|") Bor Assoc_right];
+let eoperators = [
+    [ Infix (pBinop cEBinop (pSymbol "*") BMul, Assoc_right)
+    ; Infix (pBinop cEBinop (pSymbol "/") BDiv, Assoc_left)
+    ; Infix (pBinop cEBinop (pSymbol "%") BRem, Assoc_left)
+    ];
+    [ Infix (pBinop cEBinop (pSymbol "+") BAdd, Assoc_right)
+    ; Infix (pBinop cEBinop (pSymbol "-") BSub, Assoc_left)
+    ]
 ]
 
 let pExpr : expr tagged parser =
-    expression operators (pToken pTerm)
+    expression eoperators (pToken (pInt <|> pVar))
 
-let pFormula = pExpr
+let pNot =
+    pSymbol "not" |>> fun symbol c ->
+    {desc = FNot c; pos = {start = symbol.pos.start; stop = c.pos.stop }}
+
+let foperators = [
+    [Prefix pNot];
+    [Infix (pBinop cFBinop (pSymbol "/\\") FAnd, Assoc_right)];
+    [Infix (pBinop cFBinop (pSymbol "\\/") FOr, Assoc_right)];
+    [Infix (pBinop cFBinop (pSymbol "->") FImplies, Assoc_right)];
+]
+
+let pCmp : fcmp parser =
+    choice
+        [ pSymbol "=" >>$ CEq
+        ; pSymbol "/=" >>$ CNe
+        ; pSymbol ">=" >>$ CGe
+        ; pSymbol ">" >>$ CGt
+        ; pSymbol "<=" >>$ CLe
+        ; pSymbol "<" >>$ CLt
+        ]
+
+let pCompare : cond parser =
+    pExpr >>= fun e1 ->
+    pToken pCmp >>= fun op ->
+    pExpr |>> fun e2 ->
+    FCompare (op, e1, e2)
+
+let pCond : cond tagged parser =
+    expression foperators (pToken (attempt pCompare <|> pBool))
 
 (** statements **)
 
@@ -86,18 +119,18 @@ let rec pStmtFn _ =
 
     in let pAssert : stmt parser =
         pSymbol "assert" >>
-        pFormula |>> fun p ->
+        pCond |>> fun p ->
         SAssert p
 
     in let pAssign : stmt parser =
-        pVar >>= fun varName ->
-        pSymbol "=" >>
+        pIdent >>= fun varName ->
+        pSymbol "<-" >>
         pExpr |>> fun e ->
         SAssign (varName, e)
 
     in let pIfElse : stmt parser =
         pSymbol "if" >>
-        pExpr >>= fun cond ->
+        pCond >>= fun cond ->
         pSymbol "then" >>
         pToken (pStmtFn ()) >>= fun s1 ->
         pSymbol "else" >>
@@ -106,14 +139,14 @@ let rec pStmtFn _ =
 
     in let pWhile : stmt parser =
         pSymbol "while" >>
-        pExpr >>= fun cond ->
+        pCond >>= fun cond ->
         pSymbol "invariant" >>
-        pFormula >>= fun invar ->
+        pCond >>= fun invar ->
         pSymbol "do" >>
         pToken (pStmtFn ()) |>> fun s ->
         SWhile (cond, invar, s)
 
-    in choice [pSkip; pAssert; pAssign; pIfElse; pWhile]
+    in choice (List.map attempt [pSkip; pAssert; pAssign; pIfElse; pWhile])
 
 let pStmt = pStmtFn ()
 

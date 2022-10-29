@@ -1,5 +1,4 @@
 open Why3
-open Wstdlib
 
 (* This defines how to parse a While AST from a source file. *)
 let file_parser

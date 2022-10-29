@@ -71,41 +71,72 @@ let convert_position (p: pos) : Loc.position =
     Loc.extract (start, stop)
 (** convert a location from our AST to a Loc.position *)
 
-let rec formula_to_term (f: formula) : term =
+let rec expr_to_term (f: expr) : term =
+    (* TODO: factor out duplication *)
     match f with
-        | EValue { desc = VBool v; _} -> if v then t_true else t_false
+        | EConst c -> Term.t_int_const (BigInt.of_int c)
         | EVar v ->
-            create_vsymbol {
-                pre_name = v.desc;
-                pre_attrs = Ident.Sattr.empty;
-                pre_loc = Some (convert_position v.pos)
-            } Ty.ty_bool
-            |> t_var
-        | ENot f' -> t_not (formula_to_term f'.desc)
+            create_vsymbol (Ident.id_fresh v) Ty.ty_int |> t_var
         | EBinop (o, f1, f2) ->
             let operation = match o.desc with
-                | Band -> t_and_asym
-                | Bor -> t_or
-            in operation (formula_to_term f1.desc) (formula_to_term f2.desc)
+                | BAdd -> "+"
+                | BSub -> "-"
+                | BMul -> "*"
+                | BDiv -> "/"
+                | BRem -> "%" in
+                let operation =
+                    create_lsymbol
+                        (operation |> Ident.op_infix |> Ident.id_fresh)
+                        [Ty.ty_int; Ty.ty_int]
+                        (Some Ty.ty_int) in
+            t_app_infer operation [expr_to_term f1.desc; expr_to_term f2.desc]
 
-let expr_to_term = formula_to_term
+let rec cond_to_term (c: cond) : term =
+    match c with
+        | FTerm b -> if b then t_true else t_false
+        | FNot c -> t_not (cond_to_term c.desc)
+        | FBinop (op, c1, c2) ->
+            let op = match op.desc with
+                | FAnd -> t_and
+                | FOr -> t_or
+                | FImplies -> t_implies
+            in op (cond_to_term c1.desc) (cond_to_term c2.desc)
+        | FCompare (cmp, expr1, expr2) ->
+            let cmp_op = match cmp.desc with
+                | CEq -> "="
+                | CNe -> "=" (*TODO*)
+                | CGt -> ">"
+                | CGe -> ">="
+                | CLt -> "<"
+                | CLe -> "<=" in
+            let cmp_op =
+                create_lsymbol
+                    (cmp_op |> Ident.op_infix |> Ident.id_fresh)
+                    [Ty.ty_int; Ty.ty_int]
+                    (Some Ty.ty_bool) in
+            t_app_infer cmp_op [expr_to_term expr1.desc; expr_to_term expr2.desc]
 
 let rec wp_stmt (s: stmt) (q: term) : term =
     match s with
         | SSkip -> q
-        | SAssert { desc = f; _ } -> t_and (formula_to_term f) q
-        | SAssign (v, e) ->
-            let vs = create_vsymbol (Ident.id_fresh ~loc:(convert_position v.pos) v.desc) Ty.ty_bool in
-            let e' = expr_to_term e.desc in
+        | SAssert c -> t_and (cond_to_term c.desc) q
+        | SAssign (v, expr) ->
+            let vs =
+                create_vsymbol (Ident.id_fresh ~loc:(convert_position v.pos) v.desc) Ty.ty_int in
+            let et = expr_to_term expr.desc in
             t_forall_close [vs] [(*TODO: find out what triggers are*)] (
                 t_implies
-                    (t_equ (t_var vs) e')
-                    (t_subst_single vs e' q)
+                    (t_equ (t_var vs) et)
+                    (t_subst_single vs et q)
             )
             (* forall v. v = e -> Q[x <- v] *)
-        | SIfElse (e, s1, s2) -> t_if (expr_to_term e.desc) (wp_stmt s1.desc q) (wp_stmt s2.desc q)
+        | SIfElse (c, s1, s2) ->
+            t_if
+                (cond_to_term c.desc)
+                (wp_stmt s1.desc q)
+                (wp_stmt s2.desc q)
             (* if e then WP(s1, q) else WP(s2, q) *)
-        | SWhile (e, i, s) -> t_true
+        | SWhile (expr, i, s) -> t_true
             (*** t_and
                 (formula_to_term i.desc)
                 () ***)
@@ -130,10 +161,10 @@ let vc_gen ((vdecls, stmts): ast) : Theory.theory =
     let f = wp (List.map (fun stmt -> stmt.desc) stmts) in
     let decl = Decl.create_prop_decl Decl.Pgoal psym f in
     let theory = Theory.create_theory (Ident.id_fresh "some_theory") in
-    let theory' = Theory.add_decl theory decl in
-    Theory.close_theory theory'
+    let theory' = Theory.use_export theory Theory.bool_theory in
+    let theory'' = Theory.add_decl theory' decl in
+    Theory.close_theory theory''
 
 let convert ast =
     let theory = vc_gen ast in
     let theories = Mstr.empty in Mstr.add "main" theory theories
-
