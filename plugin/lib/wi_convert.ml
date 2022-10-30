@@ -65,8 +65,7 @@ let convert_position (p : pos) : Loc.position =
   in
   Loc.extract (start, stop)
 
-let rec expr_to_term (e : Env.env) vars (f : expr) : term =
-  let int_namespace = (Env.read_theory e [ "int" ] "Int").th_export in
+let rec expr_to_term (th: Theory.theory) vars (f : expr) : term =
   (* TODO: factor out duplication *)
   match f with
   | EConst c -> Term.t_int_const (BigInt.of_int c)
@@ -75,17 +74,17 @@ let rec expr_to_term (e : Env.env) vars (f : expr) : term =
       let operation =
         match o.desc with BAdd -> "+" | BSub -> "-" | BMul -> "*" | BDiv -> "/" | BRem -> "%"
       in
-      let operation = Theory.ns_find_ls int_namespace [ Ident.op_infix operation ] in
-      t_app_infer operation [ expr_to_term e vars f1.desc; expr_to_term e vars f2.desc ]
+      let operation = Theory.ns_find_ls th.th_export [ Ident.op_infix operation ] in
+      t_app_infer operation [ expr_to_term th vars f1.desc; expr_to_term th vars f2.desc ]
 
-let rec cond_to_term (e : Env.env) vars (c : cond) : term =
-  let int_namespace = (Env.read_theory e [ "int" ] "Int").th_export in
+let rec cond_to_term (th : Theory.theory) vars (c : cond) : term =
+  let int_namespace = th.th_export in
   match c with
   | FTerm b -> if b then t_true else t_false
-  | FNot c -> t_not (cond_to_term e vars c.desc)
+  | FNot c -> t_not (cond_to_term th vars c.desc)
   | FBinop (op, c1, c2) ->
       let op = match op.desc with FAnd -> t_and | FOr -> t_or | FImplies -> t_implies in
-      op (cond_to_term e vars c1.desc) (cond_to_term e vars c2.desc)
+      op (cond_to_term th vars c1.desc) (cond_to_term th vars c2.desc)
   | FCompare (cmp, expr1, expr2) ->
       let cmp_op =
         match cmp.desc with
@@ -98,21 +97,22 @@ let rec cond_to_term (e : Env.env) vars (c : cond) : term =
         | CLe -> "<="
       in
       let cmp_op = Theory.ns_find_ls int_namespace [ Ident.op_infix cmp_op ] in
-      t_app_infer cmp_op [ expr_to_term e vars expr1.desc; expr_to_term e vars expr2.desc ]
+      t_app_infer cmp_op [ expr_to_term th vars expr1.desc; expr_to_term th vars expr2.desc ]
 
 (** individual statement transformation for weakest precondition calculus *)
-let rec wp_stmt e vars (s : stmt) (q : term) : term =
+let rec wp_stmt th vars (s : stmt) (q : term) : term =
   match s with
   | SSkip -> q
-  | SAssert c -> t_and (cond_to_term e vars c.desc) q
+  | SAssert c -> t_and (cond_to_term th vars c.desc) q
   | SAssign (v, expr) ->
+      (* TODO: fix *)
       let vs = Mstr.find v.desc vars in
-      let et = expr_to_term e vars expr.desc in
+      let et = expr_to_term th vars expr.desc in
       t_forall_close [ vs ] [ (*TODO: find out what triggers are*) ]
         (t_implies (t_equ (t_var vs) et) (t_subst_single vs et q))
       (* forall v. v = e -> Q[x <- v] *)
   | SIfElse (c, s1, s2) ->
-      t_if (cond_to_term e vars c.desc) (wp_stmt e vars s1.desc q) (wp_stmt e vars s2.desc q)
+      t_if (cond_to_term th vars c.desc) (wp_stmt th vars s1.desc q) (wp_stmt th vars s2.desc q)
       (* if e then WP(s1, q) else WP(s2, q) *)
   | SWhile (expr, i, s) -> t_true
 (* I /\ forall varr. (I -> if e then WP(s, I) else Q)[warr <- varr]
@@ -140,13 +140,16 @@ let mk_vars (ds : decls) : vsymbol Mstr.t =
 
 (** verification condition generator *)
 let vc_gen env ((vdecls, stmts) : ast) : Theory.theory =
-  let psym = Decl.create_prsymbol (Ident.id_fresh "main") in
+  let int_theory = Env.read_theory env ["int"] "Int" in
   let vars = mk_vars vdecls in
-  let f = wp env vars (List.map (fun stmt -> stmt.desc) stmts) in
+  let f = wp int_theory vars (List.map (fun stmt -> stmt.desc) stmts) in
   Pretty.print_term Format.std_formatter f;
+
+  let psym = Decl.create_prsymbol (Ident.id_fresh "main") in
   let decl = Decl.create_prop_decl Decl.Pgoal psym f in
+
   let theory = Theory.create_theory (Ident.id_fresh "some_theory") in
-  let theory = Theory.use_export theory Theory.bool_theory in
+  let theory = Theory.use_export theory int_theory in
   let theory = Theory.add_decl theory decl in
   Theory.close_theory theory
 
