@@ -65,7 +65,7 @@ let convert_position (p : pos) : Loc.position =
   in
   Loc.extract (start, stop)
 
-let rec expr_to_term (th: Theory.theory) vars (f : expr) : term =
+let rec expr_to_term (th : Theory.theory) vars (f : expr) : term =
   (* TODO: factor out duplication *)
   match f with
   | EConst c -> Term.t_int_const (BigInt.of_int c)
@@ -104,17 +104,19 @@ let rec wp_stmt th vars (s : stmt) (q : term) : term =
   match s with
   | SSkip -> q
   | SAssert c -> t_and (cond_to_term th vars c.desc) q
-  | SAssign (v, expr) ->
+  | SAssign (v, e) ->
       (* TODO: fix *)
+      let xs = create_vsymbol (Ident.id_fresh "_x") Ty.ty_int in
+      let xt = t_var xs in
       let vs = Mstr.find v.desc vars in
-      let et = expr_to_term th vars expr.desc in
-      t_forall_close [ vs ] [ (*TODO: find out what triggers are*) ]
-        (t_implies (t_equ (t_var vs) et) (t_subst_single vs et q))
+      let et = expr_to_term th vars e.desc in
+      t_forall_close [ xs ] [ (*TODO: find out what triggers are*) ]
+        (t_implies (t_equ xt et) (t_subst_single vs xt q))
       (* forall v. v = e -> Q[x <- v] *)
   | SIfElse (c, s1, s2) ->
       t_if (cond_to_term th vars c.desc) (wp_stmt th vars s1.desc q) (wp_stmt th vars s2.desc q)
       (* if e then WP(s1, q) else WP(s2, q) *)
-  | SWhile (expr, i, s) -> t_true
+  | SWhile (c, i, s) -> t_true
 (* I /\ forall varr. (I -> if e then WP(s, I) else Q)[warr <- varr]
    where warr are the variables modified the loop body
 *)
@@ -140,7 +142,7 @@ let mk_vars (ds : decls) : vsymbol Mstr.t =
 
 (** verification condition generator *)
 let vc_gen env ((vdecls, stmts) : ast) : Theory.theory =
-  let int_theory = Env.read_theory env ["int"] "Int" in
+  let int_theory = Env.read_theory env [ "int" ] "Int" in
   let vars = mk_vars vdecls in
   let f = wp int_theory vars (List.map (fun stmt -> stmt.desc) stmts) in
   Pretty.print_term Format.std_formatter f;
