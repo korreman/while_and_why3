@@ -48,14 +48,16 @@ let keywords =
 let pIdent =
   pToken
     ( look_ahead lowercase >> many_chars alphanum >>= fun ident ->
-      if List.exists (fun x -> x == ident) keywords then fail ("reserved keyword: " ^ ident)
-      else return ident )
+      if List.exists (fun x -> String.equal x ident) keywords
+        then fail ("reserved keyword: " ^ ident)
+        else return ident )
   <?> "identifier"
 
 (*** tokens ***)
 
 let pInt : expr parser = many1_chars digit |>> (fun ds -> EConst (int_of_string ds)) <?> "integer"
 let pVar : expr parser = pIdent |>> (fun v -> EVar v.desc) <?> "variable"
+
 let pBool : cond parser =
   pSymbol "true" >>$ FTerm true <|> (pSymbol "false" >>$ FTerm false) <?> "boolean"
 
@@ -84,8 +86,7 @@ let eoperators =
       Infix (binop (pSymbol "%") BRem, Assoc_left);
     ];
     [
-      Infix (binop (pSymbol "+") BAdd, Assoc_right);
-      Infix (binop (pPrefix "-" ">") BSub, Assoc_left);
+      Infix (binop (pSymbol "+") BAdd, Assoc_right); Infix (binop (pPrefix "-" ">") BSub, Assoc_left);
     ];
   ]
 
@@ -110,7 +111,7 @@ let foperators =
     [ Prefix (attempt pNot) ];
     [ Infix (binop (pSymbol "/\\") FAnd, Assoc_right) ];
     [ Infix (binop (pSymbol "\\/") FOr, Assoc_right) ];
-    [ Infix (binop (pSymbol "->")  FImplies, Assoc_right) ];
+    [ Infix (binop (pSymbol "->") FImplies, Assoc_right) ];
     [ Prefix (attempt pQuantCond) ];
   ]
 

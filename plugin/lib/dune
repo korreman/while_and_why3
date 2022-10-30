@@ -1,7 +1,6 @@
 (executable
  (name wi_main)
  (libraries why3 mparser)
- (modules_without_implementation wi_ast)
  (embed_in_plugin_libraries mparser)
  (modes (byte plugin) (native plugin)))
 

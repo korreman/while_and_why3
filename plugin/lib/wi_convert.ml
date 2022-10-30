@@ -68,11 +68,13 @@ let mk_pos (p : pos) : Loc.position =
   in
   Loc.extract (start, stop)
 
+exception Failed_lookup of string
+
 let rec expr_to_term (th : Theory.theory) vars (f : expr) : term =
   (* TODO: factor out duplication *)
   match f with
   | EConst c -> Term.t_int_const (BigInt.of_int c)
-  | EVar v -> Mstr.find v vars |> t_var
+  | EVar v -> ( try Mstr.find v vars |> t_var with Not_found -> raise (Failed_lookup v))
   | EBinop (o, f1, f2) ->
       let operation =
         match o.desc with BAdd -> "+" | BSub -> "-" | BMul -> "*" | BDiv -> "/" | BRem -> "%"
@@ -116,7 +118,7 @@ let rec wp_stmt th vars (s : stmt) (q : term) : term =
   | SAssign (v, e) ->
       let xs = mk_vsym "_x" in
       let xt = t_var xs in
-      let vs = Mstr.find v.desc vars in
+      let vs = try Mstr.find v.desc vars with Not_found -> raise (Failed_lookup v.desc) in
       let et = expr_to_term th vars e.desc in
       t_forall_close [ xs ] [ (*TODO: find out what triggers are*) ]
         (t_implies (t_equ xt et) (t_subst_single vs xt q))

@@ -1,13 +1,18 @@
 a b c d t;
 
+t <- 0;
+
+a <- 20;
+b <- 15;
+
 c <- a;
 d <- b;
 
-while b <> 0 invariant true do
+while not b = 0 invariant true do
     t <- b;
     b <- a % b;
-    a <- b;
-end
+    a <- t;
+end;
 
 assert
     forall q.

@@ -6,7 +6,10 @@ exception Parse
 let file_parser (env : Env.env) (_path : Env.pathname) (_file : Env.filename) (c : in_channel) :
     Env.env * Wi_ast.ast =
   match Wi_parser.parse c with
-  | Ok ast -> (env, ast)
+  | Ok ast ->
+        print_string (Wi_ast.show_ast ast);
+        print_newline ();
+        (env, ast)
   | Error str ->
         print_string str;
         print_newline ();
