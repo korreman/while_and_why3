@@ -3,12 +3,6 @@ open Why3
 (* This defines how to parse a While AST from a source file. *)
 let file_parser (env : Env.env) (_path : Env.pathname) (_file : Env.filename) (c : in_channel) :
     Env.env * Wi_ast.ast =
-  let int_theory = Env.read_theory env [ "int" ] "Int" in
-  Wstdlib.Mstr.iter
-    (fun name _ ->
-      print_string name;
-      print_newline ())
-    int_theory.th_export.ns_ls;
   (env, Result.get_ok (Wi_parser.parse c))
 
 (* Register our while language with a conversion to the base language. *)

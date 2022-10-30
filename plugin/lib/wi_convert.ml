@@ -65,27 +65,27 @@ let convert_position (p : pos) : Loc.position =
   in
   Loc.extract (start, stop)
 
-let rec expr_to_term (e : Env.env) (f : expr) : term =
-  let int_namespace = (Env.read_theory e ["int"] "Int").th_export in
+let rec expr_to_term (e : Env.env) vars (f : expr) : term =
+  let int_namespace = (Env.read_theory e [ "int" ] "Int").th_export in
   (* TODO: factor out duplication *)
   match f with
   | EConst c -> Term.t_int_const (BigInt.of_int c)
-  | EVar v -> create_vsymbol (Ident.id_fresh v) Ty.ty_int |> t_var
+  | EVar v -> Mstr.find v vars |> t_var
   | EBinop (o, f1, f2) ->
       let operation =
         match o.desc with BAdd -> "+" | BSub -> "-" | BMul -> "*" | BDiv -> "/" | BRem -> "%"
       in
-      let operation = Theory.ns_find_ls int_namespace [ operation ] in
-      t_app_infer operation [ expr_to_term e f1.desc; expr_to_term e f2.desc ]
+      let operation = Theory.ns_find_ls int_namespace [ Ident.op_infix operation ] in
+      t_app_infer operation [ expr_to_term e vars f1.desc; expr_to_term e vars f2.desc ]
 
-let rec cond_to_term (e : Env.env) (c : cond) : term =
-  let int_namespace = (Env.read_theory e ["int"] "Int").th_export in
+let rec cond_to_term (e : Env.env) vars (c : cond) : term =
+  let int_namespace = (Env.read_theory e [ "int" ] "Int").th_export in
   match c with
   | FTerm b -> if b then t_true else t_false
-  | FNot c -> t_not (cond_to_term e c.desc)
+  | FNot c -> t_not (cond_to_term e vars c.desc)
   | FBinop (op, c1, c2) ->
       let op = match op.desc with FAnd -> t_and | FOr -> t_or | FImplies -> t_implies in
-      op (cond_to_term e c1.desc) (cond_to_term e c2.desc)
+      op (cond_to_term e vars c1.desc) (cond_to_term e vars c2.desc)
   | FCompare (cmp, expr1, expr2) ->
       let cmp_op =
         match cmp.desc with
@@ -98,21 +98,21 @@ let rec cond_to_term (e : Env.env) (c : cond) : term =
         | CLe -> "<="
       in
       let cmp_op = Theory.ns_find_ls int_namespace [ Ident.op_infix cmp_op ] in
-      t_app_infer cmp_op [ expr_to_term e expr1.desc; expr_to_term e expr2.desc ]
+      t_app_infer cmp_op [ expr_to_term e vars expr1.desc; expr_to_term e vars expr2.desc ]
 
 (** individual statement transformation for weakest precondition calculus *)
-let rec wp_stmt e (s : stmt) (q : term) : term =
+let rec wp_stmt e vars (s : stmt) (q : term) : term =
   match s with
   | SSkip -> q
-  | SAssert c -> t_and (cond_to_term e c.desc) q
+  | SAssert c -> t_and (cond_to_term e vars c.desc) q
   | SAssign (v, expr) ->
-      let vs = create_vsymbol (Ident.id_fresh ~loc:(convert_position v.pos) v.desc) Ty.ty_int in
-      let et = expr_to_term e expr.desc in
+      let vs = Mstr.find v.desc vars in
+      let et = expr_to_term e vars expr.desc in
       t_forall_close [ vs ] [ (*TODO: find out what triggers are*) ]
         (t_implies (t_equ (t_var vs) et) (t_subst_single vs et q))
       (* forall v. v = e -> Q[x <- v] *)
   | SIfElse (c, s1, s2) ->
-      t_if (cond_to_term e c.desc) (wp_stmt e s1.desc q) (wp_stmt e s2.desc q)
+      t_if (cond_to_term e vars c.desc) (wp_stmt e vars s1.desc q) (wp_stmt e vars s2.desc q)
       (* if e then WP(s1, q) else WP(s2, q) *)
   | SWhile (expr, i, s) -> t_true
 (* I /\ forall varr. (I -> if e then WP(s, I) else Q)[warr <- varr]
@@ -127,12 +127,23 @@ let rec wp_stmt e (s : stmt) (q : term) : term =
 *)
 
 (** weakest precondition calculus *)
-let wp env (stmts : stmt list) : term = List.fold_right (wp_stmt env) stmts t_true
+let wp env vars (stmts : stmt list) : term = List.fold_right (wp_stmt env vars) stmts t_true
+
+(** create **)
+let mk_vars (ds : decls) : vsymbol Mstr.t =
+  List.fold_left
+    (fun acc v ->
+      let name = v.desc in
+      let var = create_vsymbol (Ident.id_fresh name) Ty.ty_int in
+      Mstr.add name var acc)
+    Mstr.empty ds
 
 (** verification condition generator *)
 let vc_gen env ((vdecls, stmts) : ast) : Theory.theory =
   let psym = Decl.create_prsymbol (Ident.id_fresh "main") in
-  let f = wp env (List.map (fun stmt -> stmt.desc) stmts) in
+  let vars = mk_vars vdecls in
+  let f = wp env vars (List.map (fun stmt -> stmt.desc) stmts) in
+  Pretty.print_term Format.std_formatter f;
   let decl = Decl.create_prop_decl Decl.Pgoal psym f in
   let theory = Theory.create_theory (Ident.id_fresh "some_theory") in
   let theory = Theory.use_export theory Theory.bool_theory in

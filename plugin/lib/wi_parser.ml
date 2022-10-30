@@ -96,7 +96,8 @@ let pCmp : fcmp parser =
 let pCompare : cond parser =
   pExpr >>= fun e1 ->
   pToken pCmp >>= fun op ->
-  pExpr |>> fun e2 -> FCompare (op, e1, e2)
+  pExpr |>> fun e2 ->
+  FCompare (op, e1, e2)
 
 let pCond : cond tagged parser = expression foperators (pToken (attempt pCompare <|> pBool))
 
