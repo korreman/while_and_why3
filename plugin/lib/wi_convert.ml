@@ -54,10 +54,11 @@ Looking a bit more at attributes,
 maybe these are actually the ones used for highlights?
 *)
 
+(** create a new, _unique_ variable symbol *)
 let mk_vsym s = create_vsymbol (Ident.id_fresh s) Ty.ty_int
 
 (** convert a location from our AST to a Loc.position *)
-let convert_position (p : pos) : Loc.position =
+let mk_pos (p : pos) : Loc.position =
   let file_name = "" in
   let start : Lexing.position =
     { pos_fname = file_name; pos_lnum = p.start.line; pos_bol = 0; pos_cnum = p.start.col }
@@ -92,7 +93,6 @@ let rec cond_to_term (th : Theory.theory) vars (c : cond) : term =
         match cmp.desc with
         (* the API is a bit leaky, so we're forced to define these as strings *)
         | CEq -> "="
-        | CNe -> "<>"
         | CGt -> ">"
         | CGe -> ">="
         | CLt -> "<"
@@ -102,7 +102,11 @@ let rec cond_to_term (th : Theory.theory) vars (c : cond) : term =
       t_app_infer cmp_op [ expr_to_term th vars expr1.desc; expr_to_term th vars expr2.desc ]
   | FQuant (q, vs, c) ->
       let quant_f = match q.desc with FForall -> t_forall_close | FExists -> t_exists_close in
-      quant_f (List.map (fun v -> mk_vsym v.desc) vs) [] (cond_to_term th vars c.desc)
+      let vsyms = List.map (fun v -> mk_vsym v.desc) vs in
+      let vars' =
+        List.fold_left (fun acc (v, var) -> Mstr.add v.desc var acc) vars (List.combine vs vsyms)
+      in
+      quant_f vsyms [] (cond_to_term th vars' c.desc)
 
 (** individual statement transformation for weakest precondition calculus *)
 let rec wp_stmt th vars (s : stmt) (q : term) : term =

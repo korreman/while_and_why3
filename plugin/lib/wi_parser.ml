@@ -41,6 +41,8 @@ let keywords =
     "while";
     "invariant";
     "do";
+    "forall";
+    "exists";
   ]
 
 let pIdent =
@@ -48,12 +50,14 @@ let pIdent =
     ( look_ahead lowercase >> many_chars alphanum >>= fun ident ->
       if List.exists (fun x -> x == ident) keywords then fail ("reserved keyword: " ^ ident)
       else return ident )
+  <?> "identifier"
 
 (*** tokens ***)
 
-let pBool : cond parser = pSymbol "true" >>$ FTerm true <|> (pSymbol "false" >>$ FTerm false)
-let pInt : expr parser = many1_chars digit |>> fun ds -> EConst (int_of_string ds)
-let pVar : expr parser = pIdent |>> fun v -> EVar v.desc
+let pInt : expr parser = many1_chars digit |>> (fun ds -> EConst (int_of_string ds)) <?> "integer"
+let pVar : expr parser = pIdent |>> (fun v -> EVar v.desc) <?> "variable"
+let pBool : cond parser =
+  pSymbol "true" >>$ FTerm true <|> (pSymbol "false" >>$ FTerm false) <?> "boolean"
 
 (*** expressions ***)
 
@@ -67,16 +71,21 @@ let pBinop constr (p : 'a parser) op =
 let cEBinop (op, e1, e2) = EBinop (op, e1, e2)
 let cFBinop (op, c1, c2) = FBinop (op, c1, c2)
 
+(** parse a string that is a prefix of another,
+    failing if followed directly by that other string *)
+let pPrefix op bad = attempt (pSymbol op << not_followed_by (T.symbol bad) "")
+
 let eoperators =
+  let binop p op = pBinop cEBinop p op <?> "integer operator" in
   [
     [
-      Infix (pBinop cEBinop (pSymbol "*") BMul, Assoc_right);
-      Infix (pBinop cEBinop (pSymbol "/") BDiv, Assoc_left);
-      Infix (pBinop cEBinop (pSymbol "%") BRem, Assoc_left);
+      Infix (binop (pSymbol "*") BMul, Assoc_right);
+      Infix (binop (pPrefix "/" "\\") BDiv, Assoc_left);
+      Infix (binop (pSymbol "%") BRem, Assoc_left);
     ];
     [
-      Infix (pBinop cEBinop (pSymbol "+") BAdd, Assoc_right);
-      Infix (pBinop cEBinop (pSymbol "-") BSub, Assoc_left);
+      Infix (binop (pSymbol "+") BAdd, Assoc_right);
+      Infix (binop (pPrefix "-" ">") BSub, Assoc_left);
     ];
   ]
 
@@ -96,11 +105,12 @@ let pQuantCond =
          { desc = FQuant (quant, vars, c); pos = { start = quant.pos.start; stop = c.pos.stop } })
 
 let foperators =
+  let binop p op = pBinop cFBinop p op <?> "conditional operator" in
   [
     [ Prefix (attempt pNot) ];
-    [ Infix (pBinop cFBinop (pSymbol "/\\") FAnd, Assoc_right) ];
-    [ Infix (pBinop cFBinop (pSymbol "\\/") FOr, Assoc_right) ];
-    [ Infix (pBinop cFBinop (pSymbol "->") FImplies, Assoc_right) ];
+    [ Infix (binop (pSymbol "/\\") FAnd, Assoc_right) ];
+    [ Infix (binop (pSymbol "\\/") FOr, Assoc_right) ];
+    [ Infix (binop (pSymbol "->")  FImplies, Assoc_right) ];
     [ Prefix (attempt pQuantCond) ];
   ]
 
@@ -108,10 +118,9 @@ let pCmp : fcmp parser =
   choice
     [
       pSymbol "=" >>$ CEq;
-      pSymbol "<>" >>$ CNe;
-      pSymbol ">" >>$ CGt;
+      pPrefix ">" "=" >>$ CGt;
       pSymbol ">=" >>$ CGe;
-      pSymbol "<" >>$ CLt;
+      pPrefix "<" "=" >>$ CLt;
       pSymbol "<=" >>$ CLe;
     ]
 

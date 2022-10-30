@@ -6,7 +6,7 @@ type 'a tagged = { pos : pos; desc : 'a }
 
 type ebinop = BAdd | BSub | BMul | BDiv | BRem
 type fbinop = FAnd | FOr | FImplies
-type fcmp = CEq | CNe | CGt | CGe | CLt | CLe
+type fcmp = CEq | CGt | CGe | CLt | CLe
 type fquant = FForall | FExists
 
 type expr =
