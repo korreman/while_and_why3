@@ -1,0 +1,3 @@
+a;
+a <- 3;
+assert forall x. x = a;
