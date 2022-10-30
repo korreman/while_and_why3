@@ -65,10 +65,8 @@ let convert_position (p : pos) : Loc.position =
   in
   Loc.extract (start, stop)
 
-let builtin_theory = Mstr.find "BuiltIn" (Env.base_language_builtin [ "BuiltIn" ])
-let namespace = builtin_theory.th_export
-
-let rec expr_to_term (f : expr) : term =
+let rec expr_to_term (e : Env.env) (f : expr) : term =
+  let int_namespace = (Env.read_theory e ["int"] "Int").th_export in
   (* TODO: factor out duplication *)
   match f with
   | EConst c -> Term.t_int_const (BigInt.of_int c)
@@ -77,20 +75,17 @@ let rec expr_to_term (f : expr) : term =
       let operation =
         match o.desc with BAdd -> "+" | BSub -> "-" | BMul -> "*" | BDiv -> "/" | BRem -> "%"
       in
-      let operation =
-        create_lsymbol
-          (operation |> Ident.op_infix |> Ident.id_fresh)
-          [ Ty.ty_int; Ty.ty_int ] (Some Ty.ty_int)
-      in
-      t_app_infer operation [ expr_to_term f1.desc; expr_to_term f2.desc ]
+      let operation = Theory.ns_find_ls int_namespace [ operation ] in
+      t_app_infer operation [ expr_to_term e f1.desc; expr_to_term e f2.desc ]
 
-let rec cond_to_term (c : cond) : term =
+let rec cond_to_term (e : Env.env) (c : cond) : term =
+  let int_namespace = (Env.read_theory e ["int"] "Int").th_export in
   match c with
   | FTerm b -> if b then t_true else t_false
-  | FNot c -> t_not (cond_to_term c.desc)
+  | FNot c -> t_not (cond_to_term e c.desc)
   | FBinop (op, c1, c2) ->
       let op = match op.desc with FAnd -> t_and | FOr -> t_or | FImplies -> t_implies in
-      op (cond_to_term c1.desc) (cond_to_term c2.desc)
+      op (cond_to_term e c1.desc) (cond_to_term e c2.desc)
   | FCompare (cmp, expr1, expr2) ->
       let cmp_op =
         match cmp.desc with
@@ -102,26 +97,22 @@ let rec cond_to_term (c : cond) : term =
         | CLt -> "<"
         | CLe -> "<="
       in
-      let cmp_op =
-        create_lsymbol
-          (cmp_op |> Ident.op_infix |> Ident.id_fresh)
-          [ Ty.ty_int; Ty.ty_int ] (Some Ty.ty_bool)
-      in
-      t_app_infer cmp_op [ expr_to_term expr1.desc; expr_to_term expr2.desc ]
+      let cmp_op = Theory.ns_find_ls int_namespace [ Ident.op_infix cmp_op ] in
+      t_app_infer cmp_op [ expr_to_term e expr1.desc; expr_to_term e expr2.desc ]
 
 (** individual statement transformation for weakest precondition calculus *)
-let rec wp_stmt (s : stmt) (q : term) : term =
+let rec wp_stmt e (s : stmt) (q : term) : term =
   match s with
   | SSkip -> q
-  | SAssert c -> t_and (cond_to_term c.desc) q
+  | SAssert c -> t_and (cond_to_term e c.desc) q
   | SAssign (v, expr) ->
       let vs = create_vsymbol (Ident.id_fresh ~loc:(convert_position v.pos) v.desc) Ty.ty_int in
-      let et = expr_to_term expr.desc in
+      let et = expr_to_term e expr.desc in
       t_forall_close [ vs ] [ (*TODO: find out what triggers are*) ]
         (t_implies (t_equ (t_var vs) et) (t_subst_single vs et q))
       (* forall v. v = e -> Q[x <- v] *)
   | SIfElse (c, s1, s2) ->
-      t_if (cond_to_term c.desc) (wp_stmt s1.desc q) (wp_stmt s2.desc q)
+      t_if (cond_to_term e c.desc) (wp_stmt e s1.desc q) (wp_stmt e s2.desc q)
       (* if e then WP(s1, q) else WP(s2, q) *)
   | SWhile (expr, i, s) -> t_true
 (* I /\ forall varr. (I -> if e then WP(s, I) else Q)[warr <- varr]
@@ -136,12 +127,12 @@ let rec wp_stmt (s : stmt) (q : term) : term =
 *)
 
 (** weakest precondition calculus *)
-let wp (stmts : stmt list) : term = List.fold_right wp_stmt stmts t_true
+let wp env (stmts : stmt list) : term = List.fold_right (wp_stmt env) stmts t_true
 
 (** verification condition generator *)
-let vc_gen ((vdecls, stmts) : ast) : Theory.theory =
+let vc_gen env ((vdecls, stmts) : ast) : Theory.theory =
   let psym = Decl.create_prsymbol (Ident.id_fresh "main") in
-  let f = wp (List.map (fun stmt -> stmt.desc) stmts) in
+  let f = wp env (List.map (fun stmt -> stmt.desc) stmts) in
   let decl = Decl.create_prop_decl Decl.Pgoal psym f in
   let theory = Theory.create_theory (Ident.id_fresh "some_theory") in
   let theory = Theory.use_export theory Theory.bool_theory in
@@ -149,7 +140,7 @@ let vc_gen ((vdecls, stmts) : ast) : Theory.theory =
   Theory.close_theory theory
 
 (** converts the ast to a theory *)
-let convert ast =
-  let theory = vc_gen ast in
+let convert ((env, ast) : Env.env * ast) =
+  let theory = vc_gen env ast in
   let theories = Mstr.empty in
   Mstr.add "main" theory theories

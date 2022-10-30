@@ -24,7 +24,7 @@ type stmt =
   | SAssert of cond tagged
   | SAssign of string tagged * expr tagged
   | SIfElse of cond tagged * stmt tagged * stmt tagged
-  | SWhile of cond tagged * cond tagged * stmt tagged
+  | SWhile of cond tagged * cond tagged * stmt tagged list
 
 type decls = string tagged list
 type ast = decls * stmt tagged list

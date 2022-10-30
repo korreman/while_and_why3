@@ -131,14 +131,15 @@ let rec pStmtFn _ =
     pSymbol "invariant" >>
     pCond >>= fun invar ->
     pSymbol "do" >>
-    pToken (pStmtFn ()) |>> fun s ->
-    SWhile (cond, invar, s)
+    many (pToken (pStmtFn ()) << pSymbol ";") >>= fun stmts ->
+    pSymbol "end" >>
+    return (SWhile (cond, invar, stmts))
   in
 
   choice (List.map attempt [ pSkip; pAssert; pAssign; pIfElse; pWhile ])
 
-let pStmt = pStmtFn ()
 let pDecls = many pIdent << pSymbol ";"
+let pStmt = pStmtFn ()
 
 (** parser **)
 
