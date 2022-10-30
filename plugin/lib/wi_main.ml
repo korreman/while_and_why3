@@ -1,9 +1,16 @@
 open Why3
 
+exception Parse
+
 (* This defines how to parse a While AST from a source file. *)
 let file_parser (env : Env.env) (_path : Env.pathname) (_file : Env.filename) (c : in_channel) :
     Env.env * Wi_ast.ast =
-  (env, Result.get_ok (Wi_parser.parse c))
+  match Wi_parser.parse c with
+  | Ok ast -> (env, ast)
+  | Error str ->
+        print_string str;
+        print_newline ();
+        raise Parse
 
 (* Register our while language with a conversion to the base language. *)
 let while_language = Env.register_language Env.base_language Wi_convert.convert

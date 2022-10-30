@@ -54,6 +54,8 @@ Looking a bit more at attributes,
 maybe these are actually the ones used for highlights?
 *)
 
+let mk_vsym s = create_vsymbol (Ident.id_fresh s) Ty.ty_int
+
 (** convert a location from our AST to a Loc.position *)
 let convert_position (p : pos) : Loc.position =
   let file_name = "" in
@@ -98,6 +100,9 @@ let rec cond_to_term (th : Theory.theory) vars (c : cond) : term =
       in
       let cmp_op = Theory.ns_find_ls int_namespace [ Ident.op_infix cmp_op ] in
       t_app_infer cmp_op [ expr_to_term th vars expr1.desc; expr_to_term th vars expr2.desc ]
+  | FQuant (q, vs, c) ->
+      let quant_f = match q.desc with FForall -> t_forall_close | FExists -> t_exists_close in
+      quant_f (List.map (fun v -> mk_vsym v.desc) vs) [] (cond_to_term th vars c.desc)
 
 (** individual statement transformation for weakest precondition calculus *)
 let rec wp_stmt th vars (s : stmt) (q : term) : term =
@@ -105,28 +110,15 @@ let rec wp_stmt th vars (s : stmt) (q : term) : term =
   | SSkip -> q
   | SAssert c -> t_and (cond_to_term th vars c.desc) q
   | SAssign (v, e) ->
-      (* TODO: fix *)
-      let xs = create_vsymbol (Ident.id_fresh "_x") Ty.ty_int in
+      let xs = mk_vsym "_x" in
       let xt = t_var xs in
       let vs = Mstr.find v.desc vars in
       let et = expr_to_term th vars e.desc in
       t_forall_close [ xs ] [ (*TODO: find out what triggers are*) ]
         (t_implies (t_equ xt et) (t_subst_single vs xt q))
-      (* forall v. v = e -> Q[x <- v] *)
   | SIfElse (c, s1, s2) ->
       t_if (cond_to_term th vars c.desc) (wp_stmt th vars s1.desc q) (wp_stmt th vars s2.desc q)
-      (* if e then WP(s1, q) else WP(s2, q) *)
   | SWhile (c, i, s) -> t_true
-(* I /\ forall varr. (I -> if e then WP(s, I) else Q)[warr <- varr]
-   where warr are the variables modified the loop body
-*)
-(* How to retrieve a list of all modified variables?
-   It doesn't immediately seem like something you can accomplish with Why3 library functions.
-   Some variables may conditionally be modified,
-   should those just be treated as always modified?
-
-   How exactly should this one work?
-*)
 
 (** weakest precondition calculus *)
 let wp env vars (stmts : stmt list) : term = List.fold_right (wp_stmt env vars) stmts t_true
@@ -136,7 +128,7 @@ let mk_vars (ds : decls) : vsymbol Mstr.t =
   List.fold_left
     (fun acc v ->
       let name = v.desc in
-      let var = create_vsymbol (Ident.id_fresh name) Ty.ty_int in
+      let var = mk_vsym name in
       Mstr.add name var acc)
     Mstr.empty ds
 

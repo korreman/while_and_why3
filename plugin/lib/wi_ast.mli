@@ -7,6 +7,7 @@ type 'a tagged = { pos : pos; desc : 'a }
 type ebinop = BAdd | BSub | BMul | BDiv | BRem
 type fbinop = FAnd | FOr | FImplies
 type fcmp = CEq | CNe | CGt | CGe | CLt | CLe
+type fquant = FForall | FExists
 
 type expr =
   | EConst of int
@@ -18,6 +19,7 @@ type cond =
   | FNot of cond tagged
   | FBinop of fbinop tagged * cond tagged * cond tagged
   | FCompare of fcmp tagged * expr tagged * expr tagged
+  | FQuant of fquant tagged * string tagged list * cond tagged
 
 type stmt =
   | SSkip

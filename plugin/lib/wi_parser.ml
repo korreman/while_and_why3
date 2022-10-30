@@ -29,7 +29,19 @@ let pToken (p : 'a parser) : 'a tagged parser =
 let pSymbol s = pToken (T.symbol s)
 
 let keywords =
-  [ "true"; "false"; "not"; "skip"; "assert"; "if"; "then"; "else"; "while"; "invariant"; "do" ]
+  [
+    "true";
+    "false";
+    "not";
+    "skip";
+    "assert";
+    "if";
+    "then";
+    "else";
+    "while";
+    "invariant";
+    "do";
+  ]
 
 let pIdent =
   pToken
@@ -74,12 +86,22 @@ let pNot =
   pSymbol "not" |>> fun symbol c ->
   { desc = FNot c; pos = { start = symbol.pos.start; stop = c.pos.stop } }
 
+let pQuant : fquant parser = choice [ pSymbol "forall" >>$ FForall; pSymbol "exists" >>$ FExists ]
+
+let pQuantCond =
+  pToken pQuant >>= fun quant ->
+  many1 pIdent >>= fun vars ->
+  pSymbol "."
+  >> return (fun c ->
+         { desc = FQuant (quant, vars, c); pos = { start = quant.pos.start; stop = c.pos.stop } })
+
 let foperators =
   [
-    [ Prefix pNot ];
+    [ Prefix (attempt pNot) ];
     [ Infix (pBinop cFBinop (pSymbol "/\\") FAnd, Assoc_right) ];
     [ Infix (pBinop cFBinop (pSymbol "\\/") FOr, Assoc_right) ];
     [ Infix (pBinop cFBinop (pSymbol "->") FImplies, Assoc_right) ];
+    [ Prefix (attempt pQuantCond) ];
   ]
 
 let pCmp : fcmp parser =
@@ -96,8 +118,7 @@ let pCmp : fcmp parser =
 let pCompare : cond parser =
   pExpr >>= fun e1 ->
   pToken pCmp >>= fun op ->
-  pExpr |>> fun e2 ->
-  FCompare (op, e1, e2)
+  pExpr |>> fun e2 -> FCompare (op, e1, e2)
 
 let pCond : cond tagged parser = expression foperators (pToken (attempt pCompare <|> pBool))
 
@@ -111,30 +132,20 @@ let rec pStmtFn _ =
 
   let pAssign : stmt parser =
     pIdent >>= fun varName ->
-    pSymbol "<-" >>
-    pExpr |>> fun e ->
-    SAssign (varName, e)
+    pSymbol "<-" >> pExpr |>> fun e -> SAssign (varName, e)
   in
 
   let pIfElse : stmt parser =
-    pSymbol "if" >>
-    pCond >>= fun cond ->
-    pSymbol "then" >>
-    pToken (pStmtFn ()) >>= fun s1 ->
-    pSymbol "else" >>
-    pToken (pStmtFn ()) |>> fun s2 ->
-    SIfElse (cond, s1, s2)
+    pSymbol "if" >> pCond >>= fun cond ->
+    pSymbol "then" >> pToken (pStmtFn ()) >>= fun s1 ->
+    pSymbol "else" >> pToken (pStmtFn ()) |>> fun s2 -> SIfElse (cond, s1, s2)
   in
 
   let pWhile : stmt parser =
-    pSymbol "while" >>
-    pCond >>= fun cond ->
-    pSymbol "invariant" >>
-    pCond >>= fun invar ->
-    pSymbol "do" >>
-    many (pToken (pStmtFn ()) << pSymbol ";") >>= fun stmts ->
-    pSymbol "end" >>
-    return (SWhile (cond, invar, stmts))
+    pSymbol "while" >> pCond >>= fun cond ->
+    pSymbol "invariant" >> pCond >>= fun invar ->
+    pSymbol "do" >> many (pToken (pStmtFn ()) << pSymbol ";") >>= fun stmts ->
+    pSymbol "end" >> return (SWhile (cond, invar, stmts))
   in
 
   choice (List.map attempt [ pSkip; pAssert; pAssign; pIfElse; pWhile ])
