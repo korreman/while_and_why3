@@ -58,22 +58,15 @@ maybe these are actually the ones used for highlights?
 let convert_position (p : pos) : Loc.position =
   let file_name = "" in
   let start : Lexing.position =
-    {
-      pos_fname = file_name;
-      pos_lnum = p.start.line;
-      pos_bol = 0;
-      pos_cnum = p.start.col;
-    }
+    { pos_fname = file_name; pos_lnum = p.start.line; pos_bol = 0; pos_cnum = p.start.col }
   in
   let stop : Lexing.position =
-    {
-      pos_fname = file_name;
-      pos_lnum = p.stop.line;
-      pos_bol = 0;
-      pos_cnum = p.stop.col;
-    }
+    { pos_fname = file_name; pos_lnum = p.stop.line; pos_bol = 0; pos_cnum = p.stop.col }
   in
   Loc.extract (start, stop)
+
+let builtin_theory = Mstr.find "BuiltIn" (Env.base_language_builtin [ "BuiltIn" ])
+let namespace = builtin_theory.th_export
 
 let rec expr_to_term (f : expr) : term =
   (* TODO: factor out duplication *)
@@ -82,12 +75,7 @@ let rec expr_to_term (f : expr) : term =
   | EVar v -> create_vsymbol (Ident.id_fresh v) Ty.ty_int |> t_var
   | EBinop (o, f1, f2) ->
       let operation =
-        match o.desc with
-        | BAdd -> "+"
-        | BSub -> "-"
-        | BMul -> "*"
-        | BDiv -> "/"
-        | BRem -> "%"
+        match o.desc with BAdd -> "+" | BSub -> "-" | BMul -> "*" | BDiv -> "/" | BRem -> "%"
       in
       let operation =
         create_lsymbol
@@ -101,9 +89,7 @@ let rec cond_to_term (c : cond) : term =
   | FTerm b -> if b then t_true else t_false
   | FNot c -> t_not (cond_to_term c.desc)
   | FBinop (op, c1, c2) ->
-      let op =
-        match op.desc with FAnd -> t_and | FOr -> t_or | FImplies -> t_implies
-      in
+      let op = match op.desc with FAnd -> t_and | FOr -> t_or | FImplies -> t_implies in
       op (cond_to_term c1.desc) (cond_to_term c2.desc)
   | FCompare (cmp, expr1, expr2) ->
       let cmp_op =
@@ -129,11 +115,7 @@ let rec wp_stmt (s : stmt) (q : term) : term =
   | SSkip -> q
   | SAssert c -> t_and (cond_to_term c.desc) q
   | SAssign (v, expr) ->
-      let vs =
-        create_vsymbol
-          (Ident.id_fresh ~loc:(convert_position v.pos) v.desc)
-          Ty.ty_int
-      in
+      let vs = create_vsymbol (Ident.id_fresh ~loc:(convert_position v.pos) v.desc) Ty.ty_int in
       let et = expr_to_term expr.desc in
       t_forall_close [ vs ] [ (*TODO: find out what triggers are*) ]
         (t_implies (t_equ (t_var vs) et) (t_subst_single vs et q))

@@ -3,15 +3,15 @@
 type coord = { line : int; col : int }
 type pos = { start : coord; stop : coord }
 type 'a tagged = { pos : pos; desc : 'a }
+
 type ebinop = BAdd | BSub | BMul | BDiv | BRem
+type fbinop = FAnd | FOr | FImplies
+type fcmp = CEq | CNe | CGt | CGe | CLt | CLe
 
 type expr =
   | EConst of int
   | EVar of string
   | EBinop of ebinop tagged * expr tagged * expr tagged
-
-type fbinop = FAnd | FOr | FImplies
-type fcmp = CEq | CNe | CGt | CGe | CLt | CLe
 
 type cond =
   | FTerm of bool
@@ -26,5 +26,5 @@ type stmt =
   | SIfElse of cond tagged * stmt tagged * stmt tagged
   | SWhile of cond tagged * cond tagged * stmt tagged
 
-type decls = string tagged listtype ast = decls * stmt tagged list
-
+type decls = string tagged list
+type ast = decls * stmt tagged list

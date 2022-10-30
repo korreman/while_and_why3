@@ -5,18 +5,10 @@ open Wi_ast
 module T = Mparser_tokens
 
 let parse_term _ _ = { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue }
-
-let parse_term_list _ _ =
-  [ { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue } ]
-
-let parse_qualid _ =
-  Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position }
-
-let parse_list_qualid _ =
-  [ Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
-
-let parse_list_ident _ =
-  [ { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
+let parse_term_list _ _ = [ { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue } ]
+let parse_qualid _ = Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position }
+let parse_list_qualid _ = [ Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
+let parse_list_ident _ = [ { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
 
 (*** primitives ***)
 
@@ -30,46 +22,25 @@ let pToken (p : 'a parser) : 'a tagged parser =
   get_pos >>= fun (_, line_b, col_b) ->
   return
     {
-      pos =
-        {
-          start = { line = line_a; col = col_a };
-          stop = { line = line_b; col = col_b };
-        };
+      pos = { start = { line = line_a; col = col_a }; stop = { line = line_b; col = col_b } };
       desc = x;
     }
 
 let pSymbol s = pToken (T.symbol s)
 
 let keywords =
-  [
-    "true";
-    "false";
-    "not";
-    "skip";
-    "assert";
-    "if";
-    "then";
-    "else";
-    "while";
-    "invariant";
-    "do";
-  ]
+  [ "true"; "false"; "not"; "skip"; "assert"; "if"; "then"; "else"; "while"; "invariant"; "do" ]
 
 let pIdent =
   pToken
     ( look_ahead lowercase >> many_chars alphanum >>= fun ident ->
-      if List.exists (fun x -> x == ident) keywords then
-        fail ("reserved keyword: " ^ ident)
+      if List.exists (fun x -> x == ident) keywords then fail ("reserved keyword: " ^ ident)
       else return ident )
 
 (*** tokens ***)
 
-let pBool : cond parser =
-  pSymbol "true" >>$ FTerm true <|> (pSymbol "false" >>$ FTerm false)
-
-let pInt : expr parser =
-  many1_chars digit |>> fun ds -> EConst (int_of_string ds)
-
+let pBool : cond parser = pSymbol "true" >>$ FTerm true <|> (pSymbol "false" >>$ FTerm false)
+let pInt : expr parser = many1_chars digit |>> fun ds -> EConst (int_of_string ds)
 let pVar : expr parser = pIdent |>> fun v -> EVar v.desc
 
 (*** expressions ***)
@@ -127,21 +98,15 @@ let pCompare : cond parser =
   pToken pCmp >>= fun op ->
   pExpr |>> fun e2 -> FCompare (op, e1, e2)
 
-let pCond : cond tagged parser =
-  expression foperators (pToken (attempt pCompare <|> pBool))
+let pCond : cond tagged parser = expression foperators (pToken (attempt pCompare <|> pBool))
 
 (** statements **)
 
 (** NOTE: OCaml doesn't allow the definition of recursive values, thus this helper function. **)
 let rec pStmtFn _ =
-  let pSkip : stmt parser =
-    pSymbol "skip" >>$ SSkip in
+  let pSkip : stmt parser = pSymbol "skip" >>$ SSkip in
 
-  let pAssert : stmt parser =
-    pSymbol "assert" >>
-    pCond |>> fun p ->
-    SAssert p
-  in
+  let pAssert : stmt parser = pSymbol "assert" >> pCond |>> fun p -> SAssert p in
 
   let pAssign : stmt parser =
     pIdent >>= fun varName ->
@@ -186,7 +151,7 @@ let parse_string s =
   | Success e -> Result.ok e
   | Failed (msg, _e) -> Result.error msg
 
-let parse file =  match MParser.parse_channel (pAst << eof) file () with
+let parse file =
+  match MParser.parse_channel (pAst << eof) file () with
   | Success e -> Result.ok e
   | Failed (msg, _e) -> Result.error msg
-
