@@ -92,9 +92,11 @@ let rec expr_to_term (ops : lsymbol Mstr.t) vars (f : expr) : term =
 let rec cond_to_term (ops : lsymbol Mstr.t) vars (c : cond) : term =
   match c with
   | FTerm b -> if b then t_true else t_false
-  | FNot c -> t_not (cond_to_term ops vars c.desc)
+  | FNot c -> t_not_simp (cond_to_term ops vars c.desc)
   | FBinop (op, c1, c2) ->
-      let op = match op.desc with FAnd -> t_and | FOr -> t_or | FImplies -> t_implies in
+      let op =
+        match op.desc with FAnd -> t_and_simp | FOr -> t_or_simp | FImplies -> t_implies_simp
+      in
       op (cond_to_term ops vars c1.desc) (cond_to_term ops vars c2.desc)
   | FCompare (cmp, expr1, expr2) ->
       let cmp_op =
@@ -109,7 +111,9 @@ let rec cond_to_term (ops : lsymbol Mstr.t) vars (c : cond) : term =
       let cmp_op = Mstr.find (Ident.op_infix cmp_op) ops in
       t_app_infer cmp_op [ expr_to_term ops vars expr1.desc; expr_to_term ops vars expr2.desc ]
   | FQuant (q, vs, c) ->
-      let quant_f = match q.desc with FForall -> t_forall_close | FExists -> t_exists_close in
+      let quant_f =
+        match q.desc with FForall -> t_forall_close_simp | FExists -> t_exists_close_simp
+      in
       let vsyms = List.map (fun v -> mk_vsym v.desc) vs in
       let vars' =
         List.fold_left (fun acc (v, var) -> Mstr.add v.desc var acc) vars (List.combine vs vsyms)
@@ -118,31 +122,48 @@ let rec cond_to_term (ops : lsymbol Mstr.t) vars (c : cond) : term =
       quant_f vsyms [ (*triggers?*) ] term
 
 (** weakest precondition calculus *)
-let rec wp ops vars (stmts : stmt list) : term = List.fold_right (wp_stmt ops vars) stmts t_true
+let rec wp ops vars (stmts : stmt list) : term = wp_fold ops vars stmts t_true
+
+and wp_fold ops vars stmts q = List.fold_right (wp_stmt ops vars) stmts q
 
 (** individual statement transformation for weakest precondition calculus *)
 and wp_stmt ops vars (s : stmt) (q : term) : term =
-  (*Pretty.print_term Format.std_formatter q;*)
-  (*Format.print_char '\n';*)
+(*  Pretty.print_term Format.std_formatter q;
+  Format.print_string "\n\n";*)
   match s with
   | SSkip -> q
-  | SAssert c -> t_and (cond_to_term ops vars c.desc) q
+  | SAssert c -> t_and_asym_simp (cond_to_term ops vars c.desc) q
   | SAssign (v, e) ->
       let xs = mk_vsym ("_" ^ v.desc) in
       let xt = t_var xs in
       let vs = try Mstr.find v.desc vars with Not_found -> raise (Failed_lookup v.desc) in
       let et = expr_to_term ops vars e.desc in
-      t_forall_close [ xs ] [ (*TODO: find out what triggers are*) ]
-        (t_implies (t_equ xt et) (t_subst_single vs xt q))
+      t_forall_close_simp [ xs ] [ (*triggers*) ]
+        (t_implies_simp (t_equ_simp xt et) (t_subst_single vs xt q))
   | SIfElse (c, s1, s2) ->
-      t_if (cond_to_term ops vars c.desc) (wp_stmt ops vars s1.desc q) (wp_stmt ops vars s2.desc q)
+      t_if_simp (cond_to_term ops vars c.desc) (wp_stmt ops vars s1.desc q)
+        (wp_stmt ops vars s2.desc q)
   | SWhile (c, i, ss) ->
-      let vsyms = Mstr.values vars in
-      let invariant = cond_to_term ops vars i.desc in
-      t_and invariant
-        (t_forall_close vsyms [ (*triggers?*) ]
-           (t_implies invariant
-              (t_if (cond_to_term ops vars c.desc) (wp ops vars (List.map (fun s -> s.desc) ss)) q)))
+      (* hoooh boy *)
+      let c = cond_to_term ops vars c.desc in
+      let i = cond_to_term ops vars i.desc in
+      let ss = List.map (fun s -> s.desc) ss in
+      let body = wp_fold ops vars ss i in
+      let imply = t_implies_simp i (t_if_simp c body q) in
+
+      let rec modified_vars s : vsymbol list =
+        match s with
+        | SAssign (v, _) -> [ Mstr.find v.desc vars ]
+        | SWhile (_, _, ss) -> List.map (fun s -> modified_vars s.desc) ss |> List.flatten
+        | SIfElse (_, s1, s2) -> List.append (modified_vars s1.desc) (modified_vars s2.desc)
+        | _ -> []
+      in
+      let vsyms = List.map modified_vars ss |> List.flatten in
+      let new_vsyms = List.map (fun vsym -> "~" ^ vsym.vs_name.id_string |> mk_vsym) vsyms in
+      let new_terms = List.map t_var new_vsyms in
+      let subst : term Mvs.t = Mvs.of_list (List.combine vsyms new_terms) in
+
+      t_and_simp i (t_forall_close_simp new_vsyms [ (*triggers*) ] (t_subst subst imply))
 
 (** create **)
 let mk_vars (ds : decls) : vsymbol Mstr.t =
