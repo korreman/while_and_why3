@@ -43,14 +43,15 @@ let keywords =
     "do";
     "forall";
     "exists";
+    "end";
   ]
 
 let pIdent =
   pToken
     ( look_ahead lowercase >> many_chars alphanum >>= fun ident ->
-      if List.exists (fun x -> String.equal x ident) keywords
-        then fail ("reserved keyword: " ^ ident)
-        else return ident )
+      if List.exists (fun x -> String.equal x ident) keywords then
+        fail ("reserved keyword: " ^ ident)
+      else return ident )
   <?> "identifier"
 
 (*** tokens ***)
@@ -136,29 +137,31 @@ let pCond : cond tagged parser = expression foperators (pToken (attempt pCompare
 
 (** NOTE: OCaml doesn't allow the definition of recursive values, thus this helper function. **)
 let rec pStmtFn _ =
-  let pSkip : stmt parser = pSymbol "skip" >>$ SSkip in
+  let rec pLesserStmtFn _ =
+    let pSkip : stmt parser = pSymbol "skip" >>$ SSkip in
+    let pAssert : stmt parser = pSymbol "assert" >> pCond |>> fun p -> SAssert p in
 
-  let pAssert : stmt parser = pSymbol "assert" >> pCond |>> fun p -> SAssert p in
+    let pAssign : stmt parser =
+      pIdent >>= fun varName ->
+      pSymbol "<-" >> pExpr |>> fun e -> SAssign (varName, e)
+    in
 
-  let pAssign : stmt parser =
-    pIdent >>= fun varName ->
-    pSymbol "<-" >> pExpr |>> fun e -> SAssign (varName, e)
+    let pIfElse : stmt parser =
+      pSymbol "if" >> pCond >>= fun cond ->
+      pSymbol "then" >> pToken (pStmtFn ()) >>= fun s1 ->
+      pSymbol "else" >> pToken (pStmtFn ()) >>= fun s2 -> pSymbol "end" >>$ SIfElse (cond, s1, s2)
+    in
+
+    let pWhile : stmt parser =
+      pSymbol "while" >> pCond >>= fun cond ->
+      pSymbol "invariant" >> pCond >>= fun invar ->
+      pSymbol "do" >> pToken (pStmtFn ()) >>= fun stmt ->
+      pSymbol "end" >> return (SWhile (cond, invar, stmt))
+    in
+    choice (List.map attempt [ pSkip; pAssert; pAssign; pIfElse; pWhile ])
   in
-
-  let pIfElse : stmt parser =
-    pSymbol "if" >> pCond >>= fun cond ->
-    pSymbol "then" >> pToken (pStmtFn ()) >>= fun s1 ->
-    pSymbol "else" >> pToken (pStmtFn ()) |>> fun s2 -> SIfElse (cond, s1, s2)
-  in
-
-  let pWhile : stmt parser =
-    pSymbol "while" >> pCond >>= fun cond ->
-    pSymbol "invariant" >> pCond >>= fun invar ->
-    pSymbol "do" >> many (pToken (pStmtFn ()) << pSymbol ";") >>= fun stmts ->
-    pSymbol "end" >> return (SWhile (cond, invar, stmts))
-  in
-
-  choice (List.map attempt [ pSkip; pAssert; pAssign; pIfElse; pWhile ])
+  let pSeq = many1 (pToken (pLesserStmtFn () << pSymbol ";")) |>> fun x -> SSeq x in
+  attempt pSeq <|> attempt (pLesserStmtFn ())
 
 let pDecls = many pIdent << pSymbol ";"
 let pStmt = pStmtFn ()
@@ -167,7 +170,7 @@ let pStmt = pStmtFn ()
 
 let pAst : ast parser =
   pDecls >>= fun decls ->
-  pStmt << pSymbol ";" |> pToken |> many >>= fun body -> return (decls, body)
+  pStmt >>= fun body -> return (decls, body)
 
 let parse_string s =
   match MParser.parse_string (pAst << eof) s () with

@@ -122,16 +122,12 @@ let rec cond_to_term (ops : lsymbol Mstr.t) vars (c : cond) : term =
       quant_f vsyms [ (*triggers?*) ] term
 
 (** weakest precondition calculus *)
-let rec wp ops vars (stmts : stmt list) : term = wp_fold ops vars stmts t_true
-
-and wp_fold ops vars stmts q = List.fold_right (wp_stmt ops vars) stmts q
-
-(** individual statement transformation for weakest precondition calculus *)
-and wp_stmt ops vars (s : stmt) (q : term) : term =
+let rec wp ops vars s q =
 (*  Pretty.print_term Format.std_formatter q;
   Format.print_string "\n\n";*)
   match s with
   | SSkip -> q
+  | SSeq ss -> List.fold_right (wp ops vars) (List.map (fun s -> s.desc) ss) q
   | SAssert c -> t_and_asym_simp (cond_to_term ops vars c.desc) q
   | SAssign (v, e) ->
       let xs = mk_vsym ("_" ^ v.desc) in
@@ -141,24 +137,24 @@ and wp_stmt ops vars (s : stmt) (q : term) : term =
       t_forall_close_simp [ xs ] [ (*triggers*) ]
         (t_implies_simp (t_equ_simp xt et) (t_subst_single vs xt q))
   | SIfElse (c, s1, s2) ->
-      t_if_simp (cond_to_term ops vars c.desc) (wp_stmt ops vars s1.desc q)
-        (wp_stmt ops vars s2.desc q)
-  | SWhile (c, i, ss) ->
+      t_if_simp (cond_to_term ops vars c.desc) (wp ops vars s1.desc q)
+        (wp ops vars s2.desc q)
+  | SWhile (c, i, s) ->
       (* hoooh boy *)
       let c = cond_to_term ops vars c.desc in
       let i = cond_to_term ops vars i.desc in
-      let ss = List.map (fun s -> s.desc) ss in
-      let body = wp_fold ops vars ss i in
+      let body = wp ops vars s.desc i in
       let imply = t_implies_simp i (t_if_simp c body q) in
 
       let rec modified_vars s : vsymbol list =
         match s with
+        | SSeq ss -> List.map (fun s -> modified_vars s.desc) ss |> List.flatten
         | SAssign (v, _) -> [ Mstr.find v.desc vars ]
-        | SWhile (_, _, ss) -> List.map (fun s -> modified_vars s.desc) ss |> List.flatten
+        | SWhile (_, _, s) -> modified_vars s.desc
         | SIfElse (_, s1, s2) -> List.append (modified_vars s1.desc) (modified_vars s2.desc)
         | _ -> []
       in
-      let vsyms = List.map modified_vars ss |> List.flatten in
+      let vsyms = modified_vars s.desc in
       let new_vsyms = List.map (fun vsym -> "~" ^ vsym.vs_name.id_string |> mk_vsym) vsyms in
       let new_terms = List.map t_var new_vsyms in
       let subst : term Mvs.t = Mvs.of_list (List.combine vsyms new_terms) in
@@ -175,12 +171,12 @@ let mk_vars (ds : decls) : vsymbol Mstr.t =
     Mstr.empty ds
 
 (** verification condition generator *)
-let vc_gen env ((vdecls, stmts) : ast) : Theory.theory =
+let vc_gen env ((vdecls, stmt) : ast) : Theory.theory =
   let int_theory = Env.read_theory env [ "int" ] "Int" in
   let div_theory = Env.read_theory env [ "int" ] "ComputerDivision" in
   let op_symbols = Mstr.set_union int_theory.th_export.ns_ls div_theory.th_export.ns_ls in
   let vars = mk_vars vdecls in
-  let f = wp op_symbols vars (List.map (fun stmt -> stmt.desc) stmts) in
+  let f = wp op_symbols vars stmt t_true in
   Pretty.print_term Format.std_formatter f;
 
   let psym = Decl.create_prsymbol (Ident.id_fresh "main") in

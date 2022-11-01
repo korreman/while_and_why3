@@ -21,14 +21,15 @@ type cond =
 
 type stmt =
   | SSkip
+  | SSeq of stmt tagged list
   | SAssert of cond tagged
   | SAssign of string tagged * expr tagged
   | SIfElse of cond tagged * stmt tagged * stmt tagged
-  | SWhile of cond tagged * cond tagged * stmt tagged list
+  | SWhile of cond tagged * cond tagged * stmt tagged
 
 type decls = string tagged list
 
-type ast = decls * stmt tagged list
+type ast = decls * stmt
 
 (*** quick and dirty printing ***)
 
@@ -82,19 +83,21 @@ let rec show_cond (c: cond) =
 let rec show_stmt (s: stmt) =
     (match s with
     | SSkip -> "skip"
+    | SSeq ss -> String.concat ";\n" (List.map (fun stmt -> show_stmt stmt.desc) ss) ^ ";\n"
     | SAssert c -> "assert " ^ show_cond c.desc
     | SAssign (v, e) -> v.desc ^ " <- " ^ show_expr e.desc
     | SIfElse (c, s1, s2) ->
         "if " ^ show_cond c.desc ^ " then " ^ show_stmt s1.desc ^ " else " ^ show_stmt s2.desc
-    | SWhile (c, i, s) ->
-        let ss = String.concat ";\n" (List.map (fun stmt -> show_stmt stmt.desc) s) ^ ";\n" in
-        "while " ^ show_cond c.desc ^ " invariant " ^ show_cond i.desc ^ " do\n" ^ ss ^ "end"
+    | SWhile (c, i, ss) ->
+        "while " ^ show_cond c.desc ^
+        " invariant " ^ show_cond i.desc ^
+        " do\n" ^ show_stmt ss.desc ^ "end"
     )
 
-let show_ast ((decls, stmts) : ast) =
+let show_ast ((decls, stmt) : ast) =
     let result = ref "" in
     result := !result ^ "variables: ";
     List.iter (fun x -> result := !result ^ x.desc ^ " ") decls;
     result := !result ^ ";\n";
-    List.iter (fun x -> result := !result ^ show_stmt x.desc ^ ";\n") stmts;
+    result := !result ^ show_stmt stmt;
     !result
