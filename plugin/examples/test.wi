@@ -1,8 +1,0 @@
-a b;
-
-while a > 0 invariant (a + b = 5) /\ a >= 0 do
-    a <- a - 1;
-    b <- b + 1;
-end;
-
-assert b = 5;

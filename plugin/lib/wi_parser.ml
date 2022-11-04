@@ -1,5 +1,3 @@
-open Why3
-open Ptree
 open MParser
 open Wi_ast
 module T = Mparser_tokens
@@ -81,7 +79,8 @@ let eoperators =
       Infix (binop (pSymbol "%") BRem, Assoc_left);
     ];
     [
-      Infix (binop (pSymbol "+") BAdd, Assoc_right); Infix (binop (pPrefix "-" ">") BSub, Assoc_left);
+      Infix (binop (pSymbol "+") BAdd, Assoc_right);
+      Infix (binop (pPrefix "-" ">") BSub, Assoc_left);
     ];
   ]
 
@@ -173,14 +172,23 @@ let rec pStmtFn _ =
   let pSeq = many1 (pToken (pLesserStmtFn () << pSymbol ";")) |>> fun x -> SSeq x in
   attempt pSeq <|> attempt (pLesserStmtFn ())
 
+
+let pReq =
+    pSymbol "require" >>
+    pFormula >>= fun f ->
+    pSymbol ";" >>
+    return f
+
 let pDecls = many pIdent << pSymbol ";"
+let pReqs = many pReq
 let pStmt = pStmtFn ()
 
 (** parser **)
 
 let pAst : ast parser =
   pDecls >>= fun decls ->
-  pStmt >>= fun body -> return (decls, body)
+  pReqs >>= fun reqs ->
+  pStmt >>= fun body -> return (decls, reqs, body)
 
 let parse_string s =
   match MParser.parse_string (pAst << eof) s () with
@@ -191,11 +199,3 @@ let parse file =
   match MParser.parse_channel (pAst << eof) file () with
   | Success e -> Result.ok e
   | Failed (msg, _e) -> Result.error msg
-
-(** argument parsing **)
-
-let parse_term _ _ = { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue }
-let parse_term_list _ _ = [ { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue } ]
-let parse_qualid _ = Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position }
-let parse_list_qualid _ = [ Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
-let parse_list_ident _ = [ { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]

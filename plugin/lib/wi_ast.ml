@@ -28,7 +28,8 @@ type stmt =
   | SWhile of cond tagged * cond tagged * stmt tagged
 
 type decls = string tagged list
-type ast = decls * stmt
+type requirements = cond tagged list
+type ast = decls * requirements * stmt
 
 (*** quick and dirty printing ***)
 
@@ -93,10 +94,11 @@ let rec show_stmt (s: stmt) =
         " do\n" ^ show_stmt ss.desc ^ "end"
     )
 
-let show_ast ((decls, stmt) : ast) =
+let show_ast ((decls, reqs, stmt) : ast) =
     let result = ref "" in
     result := !result ^ "variables: ";
     List.iter (fun x -> result := !result ^ x.desc ^ " ") decls;
     result := !result ^ ";\n";
+    List.iter (fun r -> result := !result ^ "require: " ^ show_cond r.desc ^ ";\n") reqs;
     result := !result ^ show_stmt stmt;
     !result

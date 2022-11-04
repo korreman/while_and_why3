@@ -135,7 +135,7 @@ let mk_vars (ds : decls) : vsymbol Mstr.t =
     Mstr.empty ds
 
 (** verification condition generator *)
-let vc_gen env ((vdecls, stmt) : ast) : Theory.theory =
+let vc_gen env ((vdecls, reqs, stmt) : ast) : Theory.theory =
   (* these theories are required in order to perform integer arithmetic *)
   let int_theory = Env.read_theory env [ "int" ] "Int" in
   let div_theory = Env.read_theory env [ "int" ] "ComputerDivision" in
@@ -143,16 +143,18 @@ let vc_gen env ((vdecls, stmt) : ast) : Theory.theory =
 
   (* initialize fresh variables from top declarations *)
   let vars = mk_vars vdecls in
+  let assumptions = List.map (fun req -> cond_to_term op_symbols vars req.desc) reqs in
 
   (* run weakest precondition calculus *)
   let wp_result = wp op_symbols vars stmt t_true in
+  let f_assums = t_implies_simp (t_and_asym_l assumptions) wp_result in
 
-  let f = t_forall_close_simp (Mstr.values vars) [] wp_result in
-  (*Pretty.print_term Format.std_formatter f;*)
+  let f_quant = t_forall_close_simp (Mstr.values vars) [] f_assums in
+  (*Pretty.print_term Format.std_f ormatter f;*)
 
   (* turn the resulting predicate into a goal *)
   let psym = Decl.create_prsymbol (Ident.id_fresh "main") in
-  let decl = Decl.create_prop_decl Decl.Pgoal psym f in
+  let decl = Decl.create_prop_decl Decl.Pgoal psym f_quant in
 
   let theory = Theory.create_theory (Ident.id_fresh "main_theory") in
   let theory = Theory.use_export theory int_theory in
