@@ -26,6 +26,7 @@ let mk_binop ops name a b =
   let op = Mstr.find name ops in
   t_app_infer op [ a; b ]
 
+(* generate a term from a While-lang expression *)
 let rec expr_to_term (ops : lsymbol Mstr.t) vars (f : expr) : term =
   match f with
   | EConst c -> Term.t_int_const (BigInt.of_int c)
@@ -43,6 +44,7 @@ let rec expr_to_term (ops : lsymbol Mstr.t) vars (f : expr) : term =
       in
       mk_binop ops operation (expr_to_term ops vars f1.desc) (expr_to_term ops vars f2.desc)
 
+(* generate a term from a While-lang condition *)
 let rec cond_to_term (ops : lsymbol Mstr.t) vars (c : cond) : term =
   match c with
   | FTerm b -> if b then t_true else t_false
@@ -146,7 +148,7 @@ let vc_gen env ((vdecls, stmt) : ast) : Theory.theory =
   let wp_result = wp op_symbols vars stmt t_true in
 
   let f = t_forall_close_simp (Mstr.values vars) [] wp_result in
-  Pretty.print_term Format.std_formatter f;
+  (*Pretty.print_term Format.std_formatter f;*)
 
   (* turn the resulting predicate into a goal *)
   let psym = Decl.create_prsymbol (Ident.id_fresh "main") in

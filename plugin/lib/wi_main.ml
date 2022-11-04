@@ -7,8 +7,8 @@ let file_parser (env : Env.env) (_path : Env.pathname) (_file : Env.filename) (c
     Env.env * Wi_ast.ast =
   match Wi_parser.parse c with
   | Ok ast ->
-        print_string (Wi_ast.show_ast ast);
-        print_newline ();
+        (*print_string (Wi_ast.show_ast ast);
+        print_newline ();*)
         (env, ast)
   | Error str ->
         print_string str;
@@ -23,9 +23,3 @@ let () = Env.register_format ~desc:"While format" while_language "while" [ "wi" 
 
 (* Register a task printer for user-facing output. *)
 let () = Itp_server.add_registered_lang "while" Wi_printer.while_ext_printer
-
-(* Register objects for command parsing (transformations, etc.) *)
-let () =
-  Args_wrapper.set_argument_parsing_functions "while" ~parse_term:Wi_parser.parse_term
-    ~parse_term_list:Wi_parser.parse_term_list ~parse_qualid:Wi_parser.parse_qualid
-    ~parse_list_qualid:Wi_parser.parse_list_qualid ~parse_list_ident:Wi_parser.parse_list_ident
