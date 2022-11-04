@@ -3,12 +3,46 @@
 % Explanation of language
 % Reference to the paper it was essentially taken from
 
-\begin{lstlisting}
- statements = (s ";")+
- s ::= "skip"
-     | "assert" c
-     | v "<-" e
-     | "if" c "then" statements "else" statements "end"
-     | "while" c "invariant" i "do" statements "end"
-\end{lstlisting}
+For our target language,
+we choose a simple While-language (shown in fig. \ref{fig:whilegrammar}).
+\begin{figure}[H]
+    \begin{lstlisting}
+program ::= (v+) ";" statements
+statements ::= (s ";")+
 
+s ::= "skip"
+    | "assert" f
+    | v "<-" e
+    | "if" c "then" statements "else" statements "end"
+    | "while" c "invariant" f "do" statements "end"
+
+e ::= [integer]
+    | e [op] e
+
+c ::= c "&&" c
+    | c "||" c
+    | e [cmp] e
+
+f ::= "true"
+    | "false"
+    | f "\/" f
+    | f "/\" f
+    | f "->" f
+    | "exists" v "." f
+    | "forall" v "." f
+    | e [cmp] e \end{lstlisting}
+    \caption{Grammar for a simple While-language\label{fig:whilegrammar}}
+\end{figure}
+
+For the sake of simplicity,
+all variables must be specified at the start of program.
+Expressions $e$ are arithmetic integer expressions
+supporting addition, subtraction, multiplication, division, and remainders.
+Conditions $c$ may consist of booleans, \inl{\&\&}, \inl{||}, and integer comparisons.
+Formulas $f$ are a small set of logical formulas, covering all properties that conditions can test
+as well as implications and quantifications.
+
+We borrow this language from a subset of \cite{jlamp},
+although the only differences from a typical While-language
+are the additions of logical assertions and loop invariants.
+This is enough to write some simple programs and prove a few properties.

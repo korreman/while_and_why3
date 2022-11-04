@@ -1,0 +1,18 @@
+\begin{thebibliography}{1}
+
+\bibitem{jlamp}
+Sylvain Dailler, David Hauzar, Claude March{\'e}, and Yannick Moy.
+\newblock {Instrumenting a Weakest Precondition Calculus for Counterexample
+  Generation}.
+\newblock {\em {Journal of Logical and Algebraic Methods in Programming}},
+  99:97--113, 2018.
+
+\bibitem{dunesite}
+Jane~Street Group.
+\newblock Dune - a composable build system, November 2022.
+
+\bibitem{mparser}
+Max Mouratov and Holger Arnold.
+\newblock Mparser, March 2021.
+
+\end{thebibliography}
