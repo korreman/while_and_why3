@@ -28,7 +28,6 @@ type stmt =
   | SWhile of cond tagged * cond tagged * stmt tagged
 
 type decls = string tagged list
-
 type ast = decls * stmt
 
 (*** quick and dirty printing ***)

@@ -1,9 +1,6 @@
 a b;
 
-a <- 5;
-b <- 0;
-
-while a > 0 invariant a + b = 5 /\ a >= 0 do
+while a > 0 invariant (a + b = 5) /\ a >= 0 do
     a <- a - 1;
     b <- b + 1;
 end;

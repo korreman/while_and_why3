@@ -4,12 +4,6 @@ open MParser
 open Wi_ast
 module T = Mparser_tokens
 
-let parse_term _ _ = { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue }
-let parse_term_list _ _ = [ { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue } ]
-let parse_qualid _ = Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position }
-let parse_list_qualid _ = [ Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
-let parse_list_ident _ = [ { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
-
 (*** primitives ***)
 
 type 'a parser = ('a, unit) t
@@ -91,7 +85,12 @@ let eoperators =
     ];
   ]
 
-let pExpr : expr tagged parser = expression eoperators (pToken (pInt <|> pVar))
+let parens_expression operators terminal =
+  let rec parens_term s = (T.parens expr <|> terminal) s
+  and expr s = expression operators parens_term s in
+  expr
+
+let pExpr : expr tagged parser = parens_expression eoperators (pToken (pInt <|> pVar))
 
 let pNot =
   pSymbol "not" |>> fun symbol c ->
@@ -106,8 +105,16 @@ let pQuantCond =
   >> return (fun c ->
          { desc = FQuant (quant, vars, c); pos = { start = quant.pos.start; stop = c.pos.stop } })
 
-let foperators =
+let coperators =
   let binop p op = pBinop cFBinop p op <?> "conditional operator" in
+  [
+    [ Prefix (attempt pNot) ];
+    [ Infix (binop (pSymbol "&&") FAnd, Assoc_right) ];
+    [ Infix (binop (pSymbol "||") FOr, Assoc_right) ];
+  ]
+
+let foperators =
+  let binop p op = pBinop cFBinop p op <?> "formula operator" in
   [
     [ Prefix (attempt pNot) ];
     [ Infix (binop (pSymbol "/\\") FAnd, Assoc_right) ];
@@ -131,15 +138,18 @@ let pCompare : cond parser =
   pToken pCmp >>= fun op ->
   pExpr |>> fun e2 -> FCompare (op, e1, e2)
 
-let pCond : cond tagged parser = expression foperators (pToken (attempt pCompare <|> pBool))
+let pCond : cond tagged parser = parens_expression coperators (pToken (attempt pCompare <|> pBool))
+
+let pFormula : cond tagged parser =
+  parens_expression foperators (pToken (attempt pCompare <|> pBool))
 
 (** statements **)
 
 (** NOTE: OCaml doesn't allow the definition of recursive values, thus this helper function. **)
 let rec pStmtFn _ =
-  let rec pLesserStmtFn _ =
+  let pLesserStmtFn _ =
     let pSkip : stmt parser = pSymbol "skip" >>$ SSkip in
-    let pAssert : stmt parser = pSymbol "assert" >> pCond |>> fun p -> SAssert p in
+    let pAssert : stmt parser = pSymbol "assert" >> pFormula |>> fun p -> SAssert p in
 
     let pAssign : stmt parser =
       pIdent >>= fun varName ->
@@ -154,7 +164,7 @@ let rec pStmtFn _ =
 
     let pWhile : stmt parser =
       pSymbol "while" >> pCond >>= fun cond ->
-      pSymbol "invariant" >> pCond >>= fun invar ->
+      pSymbol "invariant" >> pFormula >>= fun invar ->
       pSymbol "do" >> pToken (pStmtFn ()) >>= fun stmt ->
       pSymbol "end" >> return (SWhile (cond, invar, stmt))
     in
@@ -181,3 +191,11 @@ let parse file =
   match MParser.parse_channel (pAst << eof) file () with
   | Success e -> Result.ok e
   | Failed (msg, _e) -> Result.error msg
+
+(** argument parsing **)
+
+let parse_term _ _ = { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue }
+let parse_term_list _ _ = [ { term_loc = Loc.dummy_position; term_desc = Ptree.Ttrue } ]
+let parse_qualid _ = Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position }
+let parse_list_qualid _ = [ Ptree.Qident { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
+let parse_list_ident _ = [ { id_str = ""; id_ats = []; id_loc = Loc.dummy_position } ]
