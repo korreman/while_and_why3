@@ -45,9 +45,10 @@
     breaklines=true,
     keepspaces=true
 }
-\lstset{style=typewriter}
+\lstset{style=typewriter, frame=single}
 
 %%%%% project-specific settings %%%%%
+\newcommand{\inl}[1]{\texttt{#1}}
 %%%%% end project-specific settings %%%%%
 
 % change paragraph
@@ -88,9 +89,9 @@
     \input{intro}
     \input{while}
     \input{weakest_precondition}
-    \input{wp_examples}
     \input{tutorial}
     \input{implementation}
+    \input{wp_examples}
     \input{evaluation}
     \input{conclusion}
 

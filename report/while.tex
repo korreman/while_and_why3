@@ -1,1 +1,14 @@
 \section{\texttt{While} language} % approx. 2 pages
+% Grammar
+% Explanation of language
+% Reference to the paper it was essentially taken from
+
+\begin{lstlisting}
+ statements = (s ";")+
+ s ::= "skip"
+     | "assert" c
+     | v "<-" e
+     | "if" c "then" statements "else" statements "end"
+     | "while" c "invariant" i "do" statements "end"
+\end{lstlisting}
+

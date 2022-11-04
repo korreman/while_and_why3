@@ -1,5 +1,69 @@
-\section{Tutorial} % approx. 5 pages
+\section{The Why3 plugin API} % approx. 5 pages
 
 \subsection{Interface} % approx. 2 pages
+
+% Plugin architecture
+Why3 accepts plugins in the form of dynamically loaded executables.
+At startup, Why3 links and executes specified binaries
+such that they may initialize themselves and register languages, formats, printers, and parsers.
+
+We are going to set up our plugin using the build system Dune\ref{dunesite}.
+We dynamically link against Why3 by specifying it as a dependency.
+
+Why3 allows registering arbitrary types as languages and arranges them in a tree.
+Every language must be registered as a child of an already-existing language,
+along with a conversion function for translating this language into its parent.
+When developing a plugin for a new language,
+the main conversion targets are:
+
+\begin{itemize}
+    \item The root of the tree, a base language consisting of \inl{theory} objects.
+    \item WhyML (MLW), the default language of Why3.
+    \item MLCFG, an extension to WhyML with control flow graphs.
+\end{itemize}
+
+The choice of conversion target depends on our goal.
+If the new language can be converted to a WhyML or MLCFG AST,
+this will generally be the easier route,
+as we can then leverage the power of the existing verification condition generators.
+If the language has novel features that require unique VC generation,
+we implement this as a conversion from our language to a theory.
+
+In this project we target the base language,
+as this allows us to see how we can use the Why3 framework to build custom VC generators.
+
+\subsection{Building a \inl{theory}}
+
+All other languages must eventually be translated down to the base language
+consisting of \inl{theory} objects.
+
+A \inl{Theory} object is an intermediate representation of a module.
+This is the central representation that Why3 can apply transformations to,
+pass off to SMT solvers, and extract code from.
+It contains declarations expressed as predicates, functions, data types, and propositions.
+Furthermore, it defines the necessary plumbing for interaction with other modules,
+namely imports and exports.
+
+The \inl{theory} type is provided by the \inl{Theory} module,
+located in \inl{src/core/theory.mli}.
+Theories are created using an encapsulated builder pattern:
+\begin{enumerate}
+    \item Create an unconstructed \inl{theory\_uc} using \inl{create\_theory}.
+    \item Add declarations (\inl{add\_decl}), imports (\inl{use\_export}), and more.
+    \item Finalize the \inl{theory} using \inl{close\_theory}.
+\end{enumerate}
+
+\subsection{Creating formulas}
+
+Logical formulas in Why3 are represented by \inl{term} objects,
+which are created using an encapsulated interface similar to the one for theories.
+
+% Parsing
+
+% Downward conversion
+
+% Itp server
+
+% Identifier
 
 \subsection{TODO} % approx. 3 pages

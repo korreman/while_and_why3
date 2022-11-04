@@ -1,1 +1,50 @@
-\section{Implementation} % approx. ? pages
+\section{Implementation} % approx. ? pages. i think i added this point myself.
+
+% Okay, maybe rather than a tutorial,
+% I should think of it as writing documentation for the Why3 API.
+% Then write about my concrete implementation here.
+% My module can then serve as a template for more complicated languages.
+
+% See, that's actually a pretty decent idea.
+In this project,
+we build a plugin that translates our While language directly into the base language.
+This allows us to explore the viability of building custom VC-generators for new languages.
+
+To ease the process, we use the Dune build system\cite{dunesite} and require Why3 as a dependency.
+Additional dependencies are embedded (statically linked) in the executable
+using the\\ % TODO: check this newline
+\inl{embed\_in\_plugin\_libraries} property.
+
+\subsection{Syntax tree}
+
+For the sake of readability,
+we define a our AST with zero Why3 dependencies.
+\lstinputlisting[lastline=32]{../plugin/lib/wi_ast.ml}
+Nodes in this tree are recursively tagged with position information,
+with the intent of carrying these annotations through the language conversion.
+The only thing of note is the sequence statement,
+which holds a list of statements rather than two.
+
+\subsection{Parsing}
+
+For parsing, we use the MParser library\cite{mparser}.
+It is a monadic parser combinator library with several useful features.
+It lets us avoid the more complex build process
+that is necessary in order to use parser generators
+(although Dune does seem to have some builtin support for Menhir).
+It has official support for position information,
+which is lacking in other combinator libraries.
+Finally, it has a built-in abstraction for parsing expressions with both prefix and infix operators,
+operator precedence, and left/right associativity.
+
+\subsection{VC-generation}
+
+As we register our own AST as a child of the base language,
+we can (and must) perform VC-generation when converting our AST.
+Here we implement the weakest precondition calculus described in section \ref{sec:whilewp}.
+
+In order to support integer arithmetic and comparisons,
+we must import the theories \inl{int.Int} and \inl{int.ComputerDivision},
+as the base theory only supports equality.
+These are provided by the environment to our parser at runtime,
+so we must carry the environment as part of our language.

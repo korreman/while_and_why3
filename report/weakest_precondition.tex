@@ -1,1 +1,76 @@
 \section{Weakest precondition calculus} % approx. 2 pages
+% An explanation of Weakest Precondition theory
+% The WP for our while language
+
+In order to generate verification conditions for a language,
+we use an instance of Dijkstra's \textit{weakest precondition calculus}.
+The WP calculus views statement as predicate transformers,
+namely transforming from a set of postconditions to preconditions.
+
+\newcommand{\wpp}{\mathrm{wp}}
+\renewcommand{\implies}{\rightarrow}
+
+Given a statement $S$, a precondition $P$, and a postcondition $Q$,
+the weakest precondition $R$ is a predicate defined
+such that $\{P\} S \{Q\}$ if and only if $P \implies R$.
+In other words, it is the least strict condition that must be satisfied
+in order to show $\{P\} S \{Q\}$.
+We denote the weakest precondition by $\wpp(S, Q)$.
+
+Given a program $B = S_1,~S_2,~...~S_n$, a WP-calculus $\wpp$, and a set of proof goals $G$,
+we can obtain a set of verification conditions by applying our WP-calculus in reverse order:
+\[
+    VC(\wpp, B, G) = wp(S_1, \wpp(S_2, (... wp(S_n, G)))
+\]
+
+\subsection{WP-calculus for While} \label{sec:whilewp}
+
+We roughly borrow the WP-calculus from \cite{jlamp} for use in our project.
+\begin{align}
+    \wpp(\inl{skip}, Q) &= Q \\
+    \wpp(S_1; S_2, Q) &= \wpp(S_1, \wpp(S_2, Q)) \\
+    \wpp(\inl{assert } P, Q) &= P \land Q ~~~~~~~~~~~~~~~~~~~~~~~~~~~~(\text{asymmetric})\\
+    \wpp(x := e, Q) &= \forall v.~v = e \implies Q[x \leftarrow v] \\
+    \wpp(\inl{if } c \inl{ then } S_1 \inl{ else } S_2, Q) &=
+        \inl{if } c \inl{ then } \wpp(S_1, Q) \inl{ else } \wpp(S_2, Q) \\
+    \wpp(\inl{while } e \inl{ invariant } I \inl{ do } s \inl{ end}, Q) &=\\
+        I \land \forall \overset{\rightarrow} v. ~
+        (I \implies \
+        \inl{if } e \inl{ then } &\wpp(s, I) \inl{ else } Q)
+        [\overset{\rightarrow} w \leftarrow \overset{\rightarrow} v]
+\end{align}
+
+The reasoning behind \inl{skip} and sequencing are fairly self-explanatory.
+
+% Asymmetric conjunction
+Assertions translate to an asymmetric conjunction.
+While semantically equivalent to the usual conjunction, it communicates to Why3
+that a goal $a \land b$ can be split into separate goals $a$ and $a \implies b$.
+
+% Assignment
+For assignments, performing a substitution $Q[x \leftarrow e]$ would be semantically sufficient.
+However, by binding $e$ to a new variable $v$ and substituting with this instead,
+we ensure that some large expression $e$ is not duplicated for every occurrence of $x$ in $Q$.
+This prevents our verification conditions from growing exponentially with program size.
+
+% if-else
+Our \inl{if-else} expression is transformed into a \textit{logical} if-else formula.
+It is equivalent to:
+\[
+    (c  \rightarrow \wpp(S_1, Q)) ~~~\land~~~
+    (\neg c  \rightarrow \wpp(S_2, Q))
+\]
+
+% while
+For \inl{while} statements,
+$\overset{\rightarrow} w$ denotes all variables that may be modified in the loop,
+while $\overset{\rightarrow} v$ denotes an equal amount of fresh variables.
+The weakest precondition can be broken down as follows:
+\begin{itemize}
+    \item Base case: invariant $I$ must hold before entering the loop.
+    \item Inductive step: for all values that may be modified in the loop,
+    \begin{itemize}
+        \item If the condition $c$ is true, the invariant $I$ must hold after running the loop body.
+        \item Otherwise, the postcondition $Q$ must hold.
+    \end{itemize}
+\end{itemize}
