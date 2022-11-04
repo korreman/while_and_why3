@@ -1,3 +1,24 @@
 \section{Evaluation} % approx. 2 pages
 
+The final product is a clear and well-documented example of a Why3 plugin.
+Regrettably, the plugin is not thoroughly tested besides a few simple examples,
+so it serves as a demonstration more than anything else.
+The greatest limitation of the language and plugin in terms of features
+is the lack of functions and predicates.
+Another feature that wasn't implemented within the bounds of this project was position annotations,
+although the plumbing for this feature is already laid out.
+With testing and a few additional features,
+the plugin could serve as a great baseline
+to which experimental features and their VC generators could be explored.
 
+In this project, we made the choice to convert our AST directly to MLW.
+In fact, we could've chosen to register a format parser for MLW
+rather than building our own syntax tree.
+It might have been simpler and easier to convert our language to MLW instead.
+There is nothing in our simple language
+that doesn't have a parallel in the rather rich features of WhyML.
+However, the API for building MLW syntax trees isn't necessarily simple either.
+For a relatively simple language,
+implementing a VC-generator is a manageable task.
+Choosing to write a conversion also results in a clearer separation of concerns,
+making the plugin a good starting point as a template for more advanced plugins.

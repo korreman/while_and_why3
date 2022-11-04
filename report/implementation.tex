@@ -1,23 +1,22 @@
 \section{Implementation} % approx. ? pages. i think i added this point myself.
 
-In this project,
-we build a plugin that translates our While language directly into the base language.
-This allows us to explore the viability of building custom VC-generators for new languages.
+Our While plugin translates our While language directly to the base language.
+Using the previously described weakest precondition calculus,
+we generate verification conditions and wrap these in a module as a single proof goal.
 
-To ease the process, we use the Dune build system\cite{dunesite} and require Why3 as a dependency.
-Additional dependencies are embedded (statically linked) in the executable
-using the\\ % TODO: check this newline
-\inl{embed\_in\_plugin\_libraries} property.
+We use the Dune build system\cite{dunesite} and require Why3 as a dependency.
+Additional dependencies are embedded (statically linked) in the executable,
+and we generate both bytecode and a native binary:
+\lstinputlisting[lastline=5]{../plugin/lib/dune}
 
 \subsection{Syntax tree}
 
-For the sake of readability,
-we define a our AST with zero Why3 dependencies.
+We define our own AST using zero Why3 dependencies:
 \lstinputlisting[lastline=32]{../plugin/lib/wi_ast.ml}
 Nodes in this tree are recursively tagged with position information,
-with the intent of carrying these annotations through the language conversion.
-The only thing of note is the sequence statement,
-which holds a list of statements rather than two.
+with the intent of carrying these annotations through the VC generation.
+Aside from this, the only deviation from the grammar in fig. \ref{fig:whilegrammar}
+is that sequences are directly defined as lists rather than manual list constructors.
 
 \subsection{Parsing}
 
@@ -26,10 +25,17 @@ It is a monadic parser combinator library with several useful features.
 It lets us avoid the more complex build process
 that is necessary in order to use parser generators
 (although Dune does seem to have some builtin support for Menhir).
-It has official support for position information,
+Furthermore, it has documented support for retrieving position information,
 which is lacking in other combinator libraries.
 Finally, it has a built-in abstraction for parsing expressions with both prefix and infix operators,
 operator precedence, and left/right associativity.
+
+Just like with our syntax tree,
+the parser is completely independent of the Why3 API as well.
+Some utility items are provided by the Why3 API,
+but in principle,
+both the syntax tree and parser may be defined as we please.
+The only strict requirement is that we implement a conversion to another Why3 language.
 
 \subsection{VC-generation}
 
@@ -37,8 +43,15 @@ As we register our own AST as a child of the base language,
 we can (and must) perform VC-generation when converting our AST.
 Here we implement the weakest precondition calculus described in section \ref{sec:whilewp}.
 
+WP is performed by a recursion on the AST.
+There's a lot of legwork to create formulas,
+but it's generally a case of matching our WP to the corresponding transformers in the \inl{Term}
+module.
 In order to support integer arithmetic and comparisons,
 we must import the theories \inl{int.Int} and \inl{int.ComputerDivision},
 as the base theory only supports equality.
 These are provided by the environment to our parser at runtime,
 so we must carry the environment as part of our language.
+
+The resulting formula is wrapped in a theory as a proposition goal,
+giving us our final base language object.

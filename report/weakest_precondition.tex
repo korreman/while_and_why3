@@ -20,7 +20,7 @@ We denote the weakest precondition by $P = \wpp(S, Q)$.
 Given a program $B = S_1,~S_2,~...~S_n$, a WP-calculus $\wpp$, and a set of proof goals $G$,
 we can obtain a set of verification conditions by applying our WP-calculus in reverse order:
 \[
-    VC(\wpp, B, G) = wp(S_1, \wpp(S_2, (... wp(S_n, G)))
+    VC(\wpp, B, G) = \wpp(S_1, \wpp(S_2, (... \wpp(S_n, G)))
 \]
 
 \subsection{WP-calculus for While} \label{sec:whilewp}

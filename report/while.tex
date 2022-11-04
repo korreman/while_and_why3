@@ -7,7 +7,7 @@ For our target language,
 we choose a simple While-language (shown in fig. \ref{fig:whilegrammar}).
 \begin{figure}[H]
     \begin{lstlisting}
-program ::= (v+) ";" statements
+program ::= (v+) ";" ("require" f ";")+ statements
 statements ::= (s ";")+
 
 s ::= "skip"
@@ -40,9 +40,9 @@ Expressions $e$ are arithmetic integer expressions
 supporting addition, subtraction, multiplication, division, and remainders.
 Conditions $c$ may consist of booleans, \inl{\&\&}, \inl{||}, and integer comparisons.
 Formulas $f$ are a small set of logical formulas, covering all properties that conditions can test
-as well as implications and quantifications.
+as well as implications and quantifiers.
 
-We borrow this language from a subset of \cite{jlamp},
+This language is mainly borrowed from a subset of \cite{jlamp},
 although the only differences from a typical While-language
 are the additions of logical assertions and loop invariants.
 This is enough to write some simple programs and prove a few properties.

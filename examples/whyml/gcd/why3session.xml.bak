@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE why3session PUBLIC "-//Why3//proof session v5//EN"
+"http://why3.lri.fr/why3session.dtd">
+<why3session shape_version="6">
+<prover id="0" name="Alt-Ergo" version="2.4.2" timelimit="5" steplimit="0" memlimit="2000"/>
+<file format="whyml">
+<path name=".."/><path name="gcd.mlw"/>
+<theory name="Gcd">
+ <goal name="compute_gcd&#39;vc" expl="VC for compute_gcd">
+ <transf name="split_vc" >
+  <goal name="compute_gcd&#39;vc.0" expl="loop invariant init" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="4"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.1" expl="loop invariant init" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="4"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.2" expl="loop invariant init" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="6"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.3" expl="termination">
+  <proof prover="0"><result status="timeout" time="5.00"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.4" expl="loop invariant preservation" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="16"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.5" expl="loop invariant preservation" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="17"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.6" expl="loop invariant preservation">
+  <proof prover="0"><result status="timeout" time="5.00"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.7" expl="loop invariant preservation" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="16"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.8" expl="loop invariant preservation" proved="true">
+  <proof prover="0"><result status="valid" time="0.00" steps="16"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.9" expl="loop invariant preservation">
+  <proof prover="0"><result status="timeout" time="5.00"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.10" expl="postcondition" proved="true">
+  <proof prover="0"><result status="valid" time="0.04" steps="1019"/></proof>
+  </goal>
+  <goal name="compute_gcd&#39;vc.11" expl="postcondition">
+  <proof prover="0"><undone/></proof>
+  </goal>
+ </transf>
+ </goal>
+</theory>
+</file>
+</why3session>

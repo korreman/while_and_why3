@@ -71,19 +71,19 @@ open Why3
 open Term
 open Ident
 
-let x  = create_vsymbol (id_fresh "x") in
-let y  = create_vsymbol (id_fresh "y") in
+let x     = create_vsymbol (id_fresh "x") in
+let y     = create_vsymbol (id_fresh "y") in
 let x_var = t_var x in
 let y_var = t_var y in
-let t1 = t_implies x_var y_var in
-let t2 = t_or (t_not x_var) y_var in
-let t  = t_forall_close [x; y] [] (t_iff t1 t2)
+let t1    = t_implies x_var y_var in
+let t2    = t_or (t_not x_var) y_var in
+let t     = t_forall_close [x; y] [] (t_iff t1 t2)
 \end{lstlisting}
 
 Note that identifiers are created using \inl{id\_fresh},
 which always creates a unique identifiers.
 In order to use the same variable multiple times,
-it's necessary to use the exact same identifier everyt time.
+it's necessary to use the exact same identifier every time.
 
 Terms and identifiers can also be annotated with locations and attributes using
 \inl{Term.t\_set\_attr}.
